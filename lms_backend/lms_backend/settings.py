@@ -11,11 +11,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
-from dotenv import load_dotenv
-import os
-
-
-load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,18 +20,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = 'django-insecure-^njs9hx1bipkynb)yvz*tk#%41al*opv%8_(p%*r&ezz-24oz$'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
+ALLOWED_HOSTS = []
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'jazzmin',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -44,11 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'user_reg',
-    'librarian_dashboard',
-    'bookloans',
-    'student_dashboard',
-    # 'encrypted_model_fields',
+    'myapp',
 ]
 
 MIDDLEWARE = [
@@ -87,12 +77,14 @@ WSGI_APPLICATION = 'lms_backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.getenv('DB_NAME'), # This is where you put the name of the db file. 
-                 # If one doesn't exist, it will be created at migration time.
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'bookworm',  
+        'USER': 'bookworm_user',  
+        'PASSWORD': 'securepassword', 
+        'HOST': '127.0.0.1',  
+        'PORT': '3306', 
     }
 }
-
 
 
 
@@ -113,7 +105,6 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
-AUTH_USER_MODEL = 'user_reg.LibraryUser'
 
 
 # Internationalization
@@ -137,44 +128,3 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-DATE_FORMATS = ["%d %b %Y"]
-JAZZMIN_SETTINGS = {
-    "site_title": "Library Managment",
-    "site_header": "Library Managment",
-    "site_brand": "Library Managment",
-    "site_logo": None,
-# Whether to show the UI customizer on the sidebar
-    "show_ui_builder": True,
-}
-
-JAZZMIN_UI_TWEAKS = {
-    "navbar_small_text": False,
-    "footer_small_text": False,
-    "body_small_text": False,
-    "brand_small_text": False,
-    "brand_colour": "navbar-danger",
-    "accent": "accent-danger",
-    "navbar": "navbar-danger navbar-dark",
-    "no_navbar_border": False,
-    "navbar_fixed": False,
-    "layout_boxed": False,
-    "footer_fixed": False,
-    "sidebar_fixed": True,
-    "sidebar": "sidebar-light-danger",
-    "sidebar_nav_small_text": False,
-    "sidebar_disable_expand": True,
-    "sidebar_nav_child_indent": False,
-    "sidebar_nav_compact_style": True,
-    "sidebar_nav_legacy_style": False,
-    "sidebar_nav_flat_style": True,
-    "theme": "cosmo",
-    "dark_mode_theme": None,
-    "button_classes": {
-        "primary": "btn-outline-primary",
-        "secondary": "btn-danger",
-        "info": "btn btn-light",
-        "warning": "btn-warning",
-        "danger": "btn-danger",
-        "success": "btn-danger",
-    }
-}
