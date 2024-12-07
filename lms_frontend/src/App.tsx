@@ -4,7 +4,8 @@ import LibrarianDashboard from './components/dashboard';
 import UserSettingsFormComponent from './components/src-components-user-settings-form';
 import CustomerHomePage from './components/customer-homepage';
 import StaffHomePage from './components/staff-homepage';
-import CataloguePageComponent from './components/src-components-catalogue-page';
+import CataloguePage from './components/src-components-catalogue-page';
+import BookReservationPage from './components/src-components-book-reservation-page';
 
 
 function App() {
@@ -16,8 +17,8 @@ function App() {
         <Route path="/settings" element={<UserSettingsFormComponent />} />
         <Route path="/customer" element={<CustomerHomePage />} />
         <Route path="/staff" element={<StaffHomePage />} />
-        <Route path="/catalogue" element={<CataloguePageComponent />} />
-
+        <Route path="/catalogue" element={<CataloguePage />} />
+        <Route path="/book-reservation/:bookId" element={<BookReservationPage />} />
 
       </Routes>
     </Router>

@@ -62,7 +62,7 @@ function CustomerHomePageContent() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
           <h1 className="text-xl font-bold mt-2 mb-2">Bookworm</h1>
@@ -79,12 +79,6 @@ function CustomerHomePageContent() {
               <SidebarMenuButton className="w-full justify-start px-4 py-2">
                 <BookOpen className="mr-2 h-4 w-4" />
                 Catalog
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Reservations
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -181,7 +175,7 @@ function CustomerHomePageContent() {
                 <CardTitle>Calendar</CardTitle>
                 <CardDescription>Upcoming events and due dates</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex justify-center items-center">
                 <Calendar
                   mode="single"
                   selected={date}
@@ -189,6 +183,7 @@ function CustomerHomePageContent() {
                   className="rounded-md border"
                 />
               </CardContent>
+
               <CardHeader className="pt-6">
                 <CardTitle>Pending Reservations</CardTitle>
               </CardHeader>
