@@ -14,7 +14,7 @@ class BookSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Book
-        fields = ['title', 'author_name', 'isbn', 'genre_name', 'is_available', 'copies']
+        fields = ['book_id','title', 'author_name', 'isbn', 'genre_name', 'is_available', 'copies']
 
     def get_is_available(self, obj):
         # Check if at least one copy of the book is available
