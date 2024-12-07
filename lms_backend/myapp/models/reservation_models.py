@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models #type:ignore
 from . import User, Book, BookCopies
 
 class Reservations(models.Model):
@@ -11,6 +11,7 @@ class Reservations(models.Model):
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     start_date = models.DateField()
     due_date = models.DateField()
+    returned = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.reservation_id)
