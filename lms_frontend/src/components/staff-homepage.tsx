@@ -1,6 +1,8 @@
 'use client'
 
 import React from 'react'
+import { useNavigate } from 'react-router-dom'
+
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -22,7 +24,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarFooter,
+ 
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -30,7 +32,9 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { BookOpen, Users, CalendarIcon, BarChart, Home, Settings, HelpCircle, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BookOpen, Users, CalendarIcon, Home, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useBookSearch } from '@/hooks/useBookSearch'
 
 // Mock data for due book reservations
 const dueReservations = [
@@ -41,13 +45,12 @@ const dueReservations = [
 ]
 
 function StaffHomePageContent() {
-  const [searchQuery, setSearchQuery] = React.useState('')
+  const navigate = useNavigate()
   const { toggleSidebar, state: sidebarState } = useSidebar()
+  const { searchQuery, setSearchQuery, recommendations } = useBookSearch()
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('Searching for:', searchQuery)
-    // Implement your search logic here
+  const handleBookSelection = (bookId: number) => {
+    navigate(`/book-reservation/${bookId}`)
   }
 
   return (
@@ -59,53 +62,32 @@ function StaffHomePageContent() {
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Catalog
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/users')}>
                 <Users className="mr-2 h-4 w-4" />
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/reservations')}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 Reservations
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <BarChart className="mr-2 h-4 w-4" />
-                Dashboard
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter className="border-t mt-auto">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <Settings className="mr-2 h-4 w-4" />
-                Settings
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
+        
       </Sidebar>
 
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -119,19 +101,40 @@ function StaffHomePageContent() {
               </Button>
               <h1 className="text-2xl font-bold">Staff Dashboard</h1>
             </div>
-            <form onSubmit={handleSearch} className="flex-1 flex items-center justify-end max-w-md ml-4">
-              <Input
-                type="search"
-                placeholder="Search books or users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mr-2"
-              />
-              <Button type="submit" size="icon">
-                <Search className="h-4 w-4" />
-                <span className="sr-only">Search</span>
-              </Button>
-            </form>
+            <div className="flex items-center space-x-4">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div className="flex-1 flex items-center justify-end max-w-md ml-4">
+                    <Input
+                      type="search"
+                      placeholder="Search books..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="mr-2"
+                    />
+                    <Button size="icon">
+                      <Search className="h-4 w-4" />
+                      <span className="sr-only">Search</span>
+                    </Button>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0">
+                  {recommendations.map((book) => (
+                    <Button
+                      key={book.book_id}
+                      variant="ghost"
+                      className="w-full justify-start text-left p-3 hover:bg-secondary"
+                      onClick={() => handleBookSelection(book.book_id)}
+                    >
+                      <div className="w-full">
+                        <div className="font-medium">{book.title}</div>
+                        <div className="text-sm text-muted-foreground">{book.author_name}</div>
+                      </div>
+                    </Button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            </div>
             <SidebarTrigger className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -140,7 +143,7 @@ function StaffHomePageContent() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
+        <main className="flex-1 overflow-auto p-6 mt-12">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card className="md:col-span-2">
               <CardHeader>
@@ -193,7 +196,9 @@ function StaffHomePageContent() {
                 </dl>
               </CardContent>
             </Card>
-            
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
             <FeatureCard
               icon={<BookOpen className="h-8 w-8 md:h-10 md:w-10 text-primary" />}
               title="Catalog Management"
@@ -204,11 +209,6 @@ function StaffHomePageContent() {
               title="User Management"
               description="Manage library members, their accounts, and permissions."
             />
-            <FeatureCard
-              icon={<BarChart className="h-8 w-8 md:h-10 md:w-10 text-primary" />}
-              title="Analytics"
-              description="View detailed reports and statistics on library usage."
-            />
           </div>
         </main>
       </div>
@@ -216,9 +216,15 @@ function StaffHomePageContent() {
   )
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}
+
+function FeatureCard({ icon, title, description }: FeatureCardProps) {
   return (
-    <Card>
+    <Card className="w-full">
       <CardHeader>
         <div className="flex justify-center mb-4">{icon}</div>
         <CardTitle className="text-center">{title}</CardTitle>

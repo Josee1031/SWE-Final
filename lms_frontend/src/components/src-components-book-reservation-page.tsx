@@ -1,8 +1,8 @@
 'use client'
-
+import { useNavigate } from 'react-router-dom'
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,7 +35,7 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarFooter,
+  
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -43,7 +43,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { BookOpen, CalendarIcon, Home, HelpCircle, Menu, Search, ChevronRight, User, ChevronLeft } from 'lucide-react'
+import { BookOpen, CalendarIcon, Home, Menu,  ChevronRight, Users, ChevronLeft } from 'lucide-react'
 
 interface BookCopy {
   copy_id: number;
@@ -60,27 +60,28 @@ interface BookDetails {
   copies: BookCopy[];
 }
 
-interface WaitlistEntry {
-  id: number;
-  email: string;
+interface Reservation {
+  reservation_id: number;
+  user: number;
+  book: number;
+  copy: number;
+  user_email: string;
+  book_title: string;
+  start_date: string;
+  due_date: string;
+  returned: boolean;
 }
 
 function BookReservationPageContent() {
+  const navigate = useNavigate();
   const { bookId } = useParams<{ bookId: string }>();
   const [bookDetails, setBookDetails] = useState<BookDetails | null>(null);
   const [copies, setCopies] = useState<BookCopy[]>([]);
-  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([
-    { id: 1, email: 'user1@example.com' },
-    { id: 2, email: 'user2@example.com' },
-    { id: 3, email: 'user3@example.com' },
-  ]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [email, setEmail] = useState('')
   const [reservationDate, setReservationDate] = useState<Date | undefined>(new Date())
-  const [waitlistEmail, setWaitlistEmail] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [selectedCopyId, setSelectedCopyId] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState<string | null>(null);
   const { toggleSidebar, state: sidebarState } = useSidebar()
   const { toast } = useToast()
@@ -112,89 +113,168 @@ function BookReservationPageContent() {
     fetchBookDetails();
   }, [bookId, toast]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log('Searching for:', searchQuery)
-    // Implement your search logic here
-  }
+  useEffect(() => {
+    const fetchReservations = async () => {
+      if (!bookId) return;
 
-  const handleReserve = async (copyId: number) => {
+      try {
+        const response = await axios.get<Reservation[]>(`http://127.0.0.1:8000/api/reservations/`, {
+          params: {
+            book_id: bookId,
+            returned: false,
+          },
+        });
+        setReservations(response.data);
+      } catch (error) {
+        console.error('Error fetching reservations:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch reservations. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchReservations();
+  }, [bookId, toast]);
+
+  
+
+  const handleReserve = (copyId: number) => {
     setSelectedCopyId(copyId);
     setIsDialogOpen(true);
   };
 
   const handleConfirmReservation = async () => {
-    if (!bookId || !selectedCopyId) return;
+    if (!bookId || !selectedCopyId || !email || !reservationDate) {
+      toast({
+        title: "Reservation Failed",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      await axios.post('/api/reservations', {
-        email,
+      const startDate = format(reservationDate, 'yyyy-MM-dd');
+
+      const data = {
+        email: email,
         book_id: parseInt(bookId),
         copy_id: selectedCopyId,
-        reservation_date: format(reservationDate!, 'yyyy-MM-dd'),
-      });
-      setCopies(copies.map(copy => 
-        copy.copy_id === selectedCopyId ? { ...copy, is_available: false } : copy
-      ));
-      toast({
-        title: "Reservation Confirmed",
-        description: `Book reserved for ${email} on ${format(reservationDate!, 'MMMM d, yyyy')}`,
-      })
-      setIsDialogOpen(false)
+        start_date: startDate,
+      };
+
+      const response = await axios.post('http://127.0.0.1:8000/api/reservations/', data);
+
+      if (response.status === 201) {
+        toast({
+          title: "Reservation Confirmed",
+          description: `Book reserved for ${email} starting from ${startDate}`,
+        });
+        setIsDialogOpen(false);
+
+        // Update the copies and reservations state
+        setCopies(prevCopies =>
+          prevCopies.map(copy =>
+            copy.copy_id === selectedCopyId ? { ...copy, is_available: false } : copy
+          )
+        );
+        setReservations(prevReservations => [...prevReservations, response.data]);
+      }
     } catch (error) {
-      console.error('Error making reservation:', error)
+      console.error('Error making reservation:', error);
       toast({
         title: "Reservation Failed",
         description: "There was an error making the reservation. Please try again.",
         variant: "destructive",
-      })
-    }
-  };
-
-  const handleMarkAvailable = async (copyId: number) => {
-    setSelectedCopyId(copyId);
-    setIsConfirmDialogOpen(true);
-  };
-
-  const handleConfirmAvailable = async () => {
-    if (!bookId || !selectedCopyId) return;
-
-    try {
-      await axios.put(`/api/books/${bookId}/copies/${selectedCopyId}/mark-available`);
-      setCopies(copies.map(copy => 
-        copy.copy_id === selectedCopyId ? { ...copy, is_available: true } : copy
-      ));
-      toast({
-        title: "Copy Marked as Available",
-        description: `Copy ${selectedCopyId} is now available for reservation.`,
-      })
-      setIsConfirmDialogOpen(false)
-    } catch (error) {
-      console.error('Error marking copy as available:', error)
-      toast({
-        title: "Action Failed",
-        description: "There was an error marking the copy as available. Please try again.",
-        variant: "destructive",
-      })
-    }
-  };
-
-  const handleAddToWaitlist = () => {
-    if (waitlistEmail) {
-      const newEntry: WaitlistEntry = {
-        id: waitlist.length + 1,
-        email: waitlistEmail,
-      };
-      setWaitlist([...waitlist, newEntry]);
-      setWaitlistEmail('');
-      toast({
-        title: "Added to Waitlist",
-        description: `${waitlistEmail} has been added to the waitlist for ${bookDetails?.title}`,
       });
     }
   };
 
-  //const handleAddToWaitlist = async () => { ... };
+  const handleExtendDeadline = async (reservationId: number) => {
+    try {
+      const response = await axios.put(`http://127.0.0.1:8000/api/reservations/${reservationId}/extend/`);
+
+      if (response.status === 200) {
+        setReservations((prevReservations) =>
+          prevReservations.map((reservation) =>
+            reservation.reservation_id === reservationId
+              ? { ...reservation, due_date: response.data.due_date }
+              : reservation
+          )
+        );
+
+        toast({
+          title: "Due date extended",
+          description: `Reservation ${reservationId} has been extended to ${response.data.due_date}.`,
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error('Error extending deadline:', error);
+      toast({
+        title: "Action Failed",
+        description: "There was an error extending the deadline. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyStatus = async (bookId: number, copyId: number) => {
+    // Convert copyId (which is actually copy_id) to copyNumber
+    const copyIndex = copies.findIndex((c) => c.copy_id === copyId);
+    if (copyIndex === -1) {
+      toast({
+        title: "Action Failed",
+        description: "Copy not found.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const copyNumber = copyIndex + 1;
+      const response = await axios.put(`http://127.0.0.1:8000/api/books/${bookId}/copies/${copyNumber}/`);
+
+      if (response.status === 200) {
+        // Update the copy status in the state
+        setCopies((prevCopies) =>
+          prevCopies.map((copy) =>
+            copy.copy_id === response.data.copy_id
+              ? { ...copy, is_available: response.data.is_available }
+              : copy
+          )
+        );
+
+        // If a reservation was updated, adjust the reservations state as well
+        if (response.data.reservation_returned !== null) {
+          setReservations((prevReservations) =>
+            prevReservations.filter(
+              (reservation) => reservation.copy !== response.data.copy_id
+            )
+          );
+        }
+
+        // Show a success toast
+        toast({
+          title: "Copy status updated",
+          description: `Copy ${response.data.copy_id} is now ${
+            response.data.is_available ? "available" : "unavailable"
+          }.`,
+          variant: "default",
+        });
+      }
+    } catch (error) {
+      console.error("Error updating copy status:", error);
+      toast({
+        title: "Action Failed",
+        description: "There was an error updating the copy status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   if (error) {
     return (
@@ -220,42 +300,33 @@ function BookReservationPageContent() {
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+          <SidebarMenuItem>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
                 Catalog
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/users')}>
+                <Users className="mr-2 h-4 w-4" />
+                Users
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/reservations')}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
                 Reservations
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <User className="mr-2 h-4 w-4" />
-                Users
-              </SidebarMenuButton>
-            </SidebarMenuItem>
           </SidebarMenu>
+       
         </SidebarContent>
-        <SidebarFooter className="border-t mt-auto">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2">
-                <HelpCircle className="mr-2 h-4 w-4" />
-                Help
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarFooter>
       </Sidebar>
 
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -269,19 +340,7 @@ function BookReservationPageContent() {
               </Button>
               <h1 className="text-2xl font-bold">Book Reservation</h1>
             </div>
-            <form onSubmit={handleSearch} className="flex-1 flex items-center justify-end max-w-md ml-4">
-              <Input
-                type="search"
-                placeholder="Search books..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mr-2"
-              />
-              <Button type="submit" size="icon">
-                <Search className="h-4 w-4" />
-                <span className="sr-only">Search</span>
-              </Button>
-            </form>
+            
             <SidebarTrigger className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -290,13 +349,24 @@ function BookReservationPageContent() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-6">
-          <h2 className="text-2xl md:text-3xl font-bold mb-6">{bookDetails.title}</h2>
-          <p className="text-lg text-gray-600 mb-6">by {bookDetails.author_name}</p>
-          <p className="text-md text-gray-600 mb-6">ISBN: {bookDetails.isbn}</p>
-          <p className="text-md text-gray-600 mb-6">Genre: {bookDetails.genre_name}</p>
-          
+        <main className="flex-1 overflow-auto p-6 mt-8">
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-bold text-primary">{bookDetails.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex flex-col space-y-2">
+                    <p className="text-lg font-semibold text-gray-700">by {bookDetails.author_name}</p>
+                    <p className="text-sm text-gray-600">ISBN: {bookDetails.isbn}</p>
+                    <p className="text-sm text-gray-600">Genre: {bookDetails.genre_name}</p>
+                  </div>
+                  <div className="pt-4 border-t border-gray-200">
+                    
+                  </div>
+                </CardContent>
+              </Card>
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle>Book Copies</CardTitle>
@@ -316,15 +386,13 @@ function BookReservationPageContent() {
                         <TableCell>{copy.copy_id}</TableCell>
                         <TableCell>{copy.is_available ? 'Available' : 'Reserved'}</TableCell>
                         <TableCell>
-                          {copy.is_available ? (
-                            <Button onClick={() => handleReserve(copy.copy_id)} >
-                              Reserve
-                            </Button>
-                          ) : (
-                            <Button onClick={() => handleMarkAvailable(copy.copy_id)} variant="outline" >
-                              Mark as Available
-                            </Button>
-                          )}
+                          <Button
+                            onClick={() => copy.is_available ? handleReserve(copy.copy_id) : null}
+                            variant={copy.is_available ? "default" : "outline"}
+                            className="w-full"
+                          >
+                            {copy.is_available ? "Reserve" : "Reserved"}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -332,39 +400,70 @@ function BookReservationPageContent() {
                 </Table>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Waitlist</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Position</TableHead>
-                      <TableHead>Email</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {waitlist.map((entry, index) => (
-                      <TableRow key={entry.id}>
-                        <TableCell>{index + 1}</TableCell>
-                        <TableCell>{entry.email}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="flex items-center space-x-2 mt-4">
-                  <Input
-                    type="email"
-                    placeholder="Enter email"
-                    value={waitlistEmail}
-                    onChange={(e) => setWaitlistEmail(e.target.value)}
-                  />
-                  <Button onClick={handleAddToWaitlist}>Add</Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Current Reservations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Copy ID</TableHead>
+                    <TableHead>User Email</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reservations.length > 0 ? (
+                    reservations.map((reservation) => (
+                      <TableRow key={reservation.reservation_id}>
+                        <TableCell>{reservation.copy}</TableCell>
+                        <TableCell>{reservation.user_email}</TableCell>
+                        <TableCell>{reservation.due_date}</TableCell>
+                        <TableCell>
+                          <Button
+                            variant="default"
+                            onClick={() => handleExtendDeadline(reservation.reservation_id)}
+                          >
+                            Extend Deadline
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="default"
+                            onClick={() => {
+                              const copyIndex = copies.findIndex((c) => c.copy_id === reservation.copy);
+                              if (copyIndex === -1) {
+                                toast({
+                                  title: "Action Failed",
+                                  description: "Copy not found.",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              handleCopyStatus(reservation.book, copyIndex + 1);
+                            }}
+                          >
+                            Returned
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-gray-500">
+                        No reservations found.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
         </main>
       </div>
 
@@ -377,47 +476,28 @@ function BookReservationPageContent() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
-                Email
-              </Label>
+            <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
+              <Label htmlFor="email" className="self-start">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="col-span-3"
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Reservation Date</Label>
-              <div className="col-span-3">
+            <div className="flex justify-center">
+              <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
                 <Calendar
                   mode="single"
                   selected={reservationDate}
                   onSelect={setReservationDate}
-                  className="rounded-md border"
+                  className="rounded-md border w-full flex justify-center items-center"
                 />
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-center">
             <Button onClick={handleConfirmReservation}>Confirm Reservation</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirm Availability</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to mark this copy as available?
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button onClick={() => setIsConfirmDialogOpen(false)} variant="outline">Cancel</Button>
-            <Button onClick={handleConfirmAvailable}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
