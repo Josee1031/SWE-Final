@@ -6,6 +6,11 @@ from myapp.models import Book, BookCopies, Reservations, Author, Genre
 from myapp.serializers.book_serializers import BookSerializer, BookCopySerializer
 from django.db.models import Q  # type: ignore
 from myapp.serializers.reservation_serializers import ReservationSerializer
+import logging
+from django.db import transaction
+import re
+from stdnum import isbn as stdnum_isbn
+logger = logging.getLogger(__name__)
 
 
 class BookListView(APIView):
@@ -26,42 +31,85 @@ class BookListView(APIView):
         serializer = BookSerializer(books, many=True)
         return Response(serializer.data)
 
+
+
+class BookAPIView(APIView):
+
+    @transaction.atomic
     def post(self, request):
         """
-        Create a new book using `author_name`, `title`, `isbn`, `genre_id`, and `copy_number`.
+        Create a new book using `author_name`, `title`, `isbn`, `genre_name`, and `copy_number`.
         - author_name (str): The name of the author.
         - title (str): The title of the book.
         - isbn (str): The ISBN of the book.
-        - genre_id (int): The ID of the genre.
+        - genre_name (str): The name of the genre.
         - copy_number (int, optional): Number of copies to create.
         """
         author_name = request.data.get('author_name')
-        genre_id = request.data.get('genre_id')
+        genre_name = request.data.get('genre_name')
+        title = request.data.get('title')
+        isbn = request.data.get('isbn')
+        copy_number = request.data.get('copy_number', 1)  # Default to 1 if not provided
 
-        if not author_name or not genre_id:
-            return Response({"error": "author_name and genre_id are required"}, status=400)
+        # Validate required fields
+        if not all([author_name, genre_name, title, isbn]):
+            logger.warning("Missing required fields in book creation request.")
+            return Response(
+                {"error": "author_name, genre_name, title, and isbn are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate copy_number
+        try:
+            copy_number = int(copy_number)
+            if copy_number < 1:
+                raise ValueError
+        except (ValueError, TypeError):
+            logger.warning(f"Invalid copy_number: {copy_number}")
+            return Response(
+                {"error": "copy_number must be an integer greater than or equal to 1."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate ISBN using python-stdnum
+        if not stdnum_isbn.is_valid(isbn):
+            logger.warning(f"Invalid ISBN format: {isbn}")
+            return Response(
+                {"error": "Invalid ISBN format."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Normalize ISBN (remove hyphens, spaces)
+        isbn = stdnum_isbn.compact(isbn)
 
         # Get or create the Author by name
-        author, created = Author.objects.get_or_create(name=author_name)
+        author, created = Author.objects.get_or_create(name=author_name.strip())
+        if created:
+            logger.info(f"Created new author: {author_name}")
 
-        # Retrieve the Genre by id
-        try:
-            genre = Genre.objects.get(pk=genre_id)
-        except Genre.DoesNotExist:
-            return Response({"error": "Genre not found"}, status=404)
+        # Get or create the Genre by name
+        genre, genre_created = Genre.objects.get_or_create(name=genre_name.strip())
+        if genre_created:
+            logger.info(f"Created new genre: {genre_name}")
 
-        # Prepare data for serializer: replacing author_name and genre_id with author, genre IDs
-        data = request.data.copy()
-        data['author'] = author.id
-        data['genre'] = genre.id
-        data.pop('author_name', None)
-        data.pop('genre_id', None)
+        # Prepare data for serializer
+        data = {
+            "author_name_input": author.name,  # Pass the author's name to the serializer
+            "genre_name_input": genre.name,   # Pass the genre's name to the serializer
+            "title": title.strip(),
+            "isbn": isbn,
+            "copy_number": copy_number
+        }
 
         serializer = BookSerializer(data=data)
         if serializer.is_valid():
             book = serializer.save()
+            logger.info(f"Book created successfully: {book.title}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.warning(f"Book creation failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
@@ -126,40 +174,34 @@ class BookCopyUpdateView(APIView):
     def put(self, request, book_id, copy_number):
         """
         Toggle the `is_available` field for a specific book copy,
-        and update related reservations where `returned=False`.
+        and mark any associated reservation as returned.
         """
         try:
-            # Retrieve the specific book copy
-            book_copies = BookCopies.objects.filter(book_id=book_id)
-            if copy_number - 1 >= len(book_copies):
+            # Retrieve all book copies for the given book_id
+            book_copies = BookCopies.objects.filter(book_id=book_id).order_by('copy_id')
+            if copy_number <= 0 or copy_number > len(book_copies):
                 return Response({"error": "Invalid copy number."}, status=400)
 
+            # Fetch the specific book copy by copy_number
             book_copy = book_copies[copy_number - 1]
 
-            # Retrieve the reservation linked to this book copy where `returned=False`
-            reservation = Reservations.objects.filter(
-                copy_id=book_copy.copy_id,
-                returned=False
-            ).first()
+            # Retrieve the first reservation associated with this copy
+            reservation = Reservations.objects.filter(copy=book_copy, copy__is_available=False).first()
 
-            # If a reservation exists, mark it as returned
+            # If a reservation exists, mark the book copy as available
             if reservation:
-                reservation.returned = True
-                reservation.save()
-
-            # Toggle the `is_available` field of the book copy
-            book_copy.is_available = not book_copy.is_available
-            book_copy.save()
+                book_copy.is_available = True
+                book_copy.save()
 
             # Prepare the response data
             response_data = {
-                "message": "Book copy availability toggled and reservation updated successfully.",
+                "message": "Book copy availability updated successfully.",
                 "copy_id": book_copy.copy_id,
                 "is_available": book_copy.is_available,
-                "reservation_returned": reservation.returned if reservation else None,
+                "reservation_status": "Returned" if reservation else "No active reservation",
             }
 
-            # If a reservation exists, include its serialized data
+            # If a reservation exists, serialize it for the response
             if reservation:
                 serializer = ReservationSerializer(reservation)
                 response_data["reservation"] = serializer.data
@@ -170,5 +212,3 @@ class BookCopyUpdateView(APIView):
             return Response({"error": "Book copy not found."}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-
-    

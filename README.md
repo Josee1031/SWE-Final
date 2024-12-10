@@ -137,11 +137,34 @@ Run the following commands to initialize the database schema:
    USE bookworm;
    SHOW TABLES;
    ```
-You should see the default Django tables (e.g., `auth_user`, `django_migrations`) along with any app-specific tables.
+   You should see the default Django tables (e.g., `auth_user`, `django_migrations`) along with any app-specific tables.
 
 ---
 
-### **D) Start the Django Server**
+### **D) Load Mock Data**
+For testing purposes, load mock data including two user accounts with different privileges. This project uses JSON Web Token (JWT) for authentication.
+
+1. Run the load data command:
+   ```bash
+   python manage.py load_data
+   ```
+
+2. The following user accounts will be created:
+   - **User Account**
+     - **Email**: `user1@example.com`
+     - **Password**: `password3`
+     - **Privileges**: Standard user
+
+   - **Staff Account**
+     - **Email**: `libarian1@example.com`
+     - **Password**: `password1`
+     - **Privileges**: Staff (librarian) privileges
+
+   You can use these accounts to log in and test different functionalities within the LMS.
+
+---
+
+### **E) Start the Django Server**
 Run the development server:
 ```bash
 python manage.py runserver
@@ -179,6 +202,7 @@ http://127.0.0.1:8000
 - Ensure your MySQL server is running before starting the backend server.
 - Use `npm install` to ensure your frontend dependencies are up-to-date.
 - For troubleshooting, check Django logs (`runserver` output) and browser console logs.
+- JWT is used for authentication; ensure frontend handles token storage and renewal appropriately.
 
 ---
 
@@ -198,6 +222,7 @@ python -m venv venv
 source venv/bin/activate       # (or venv\Scripts\activate for Windows)
 pip install -r requirements.txt
 python manage.py migrate
+python manage.py load_data    # Load mock data
 python manage.py runserver
 ```
 

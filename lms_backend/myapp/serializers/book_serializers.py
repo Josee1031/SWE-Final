@@ -1,5 +1,7 @@
-from rest_framework import serializers # type: ignore
-from myapp.models import Book, BookCopies
+from rest_framework import serializers  # type: ignore
+from myapp.models import Book, BookCopies, Genre, Author
+import re
+from stdnum import isbn as stdnum_isbn
 
 class BookCopySerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,15 +9,25 @@ class BookCopySerializer(serializers.ModelSerializer):
         fields = ['copy_id', 'is_available']
 
 class BookSerializer(serializers.ModelSerializer):
-    genre_name = serializers.CharField(source='genre.name', read_only=True)  # Get genre name
-    author_name = serializers.CharField(source='author.name', read_only=True)  # Get author name
-    is_available = serializers.SerializerMethodField()  # Custom field to check availability
-    copies = serializers.SerializerMethodField()  # Include list of copies
-    copy_number = serializers.IntegerField(write_only=True, required=False)  # For creating multiple copies
+    # Read-only fields to display names
+    genre_name = serializers.CharField(source='genre.name', read_only=True)
+    author_name = serializers.CharField(source='author.name', read_only=True)
+    is_available = serializers.SerializerMethodField()
+    copies = serializers.SerializerMethodField()
+
+    # Write-only fields to accept names for creation
+    author_name_input = serializers.CharField(write_only=True, required=True, help_text="Name of the author")
+    genre_name_input = serializers.CharField(write_only=True, required=True, help_text="Name of the genre")
+    copy_number = serializers.IntegerField(write_only=True, required=False, default=1, help_text="Number of copies to create")
 
     class Meta:
         model = Book
-        fields = ['book_id', 'title', 'author_name', 'isbn', 'genre_name', 'is_available', 'copies', 'copy_number']
+        fields = [
+            'book_id', 'title', 'author_name_input', 'author_name',
+            'isbn', 'genre_name_input', 'genre_name',
+            'is_available', 'copies', 'copy_number'
+        ]
+        read_only_fields = ['book_id', 'author_name', 'genre_name', 'is_available', 'copies']
 
     def get_is_available(self, obj):
         # Check if at least one copy of the book is available
@@ -27,14 +39,42 @@ class BookSerializer(serializers.ModelSerializer):
         return BookCopySerializer(copies, many=True).data
 
     def create(self, validated_data):
-        # Extract the copy_number field from validated_data
-        copy_number = validated_data.pop('copy_number', 0)
+        author_name = validated_data.pop('author_name_input')
+        genre_name = validated_data.pop('genre_name_input')
+        copy_number = validated_data.pop('copy_number', 1)
 
-        # Create the book record
-        book = Book.objects.create(**validated_data)
+        # Validate author_name
+        if not author_name.strip():
+            raise serializers.ValidationError({"author_name_input": "Author name cannot be empty."})
 
-        # Create the specified number of copies
-        book_copies = [BookCopies(book=book, is_available=True) for _ in range(copy_number)]
-        BookCopies.objects.bulk_create(book_copies)
+        # Validate genre_name
+        if not genre_name.strip():
+            raise serializers.ValidationError({"genre_name_input": "Genre name cannot be empty."})
+
+        # Validate copy_number
+        if copy_number < 1:
+            raise serializers.ValidationError({"copy_number": "Number of copies must be at least 1."})
+
+        # Get or create the Author
+        author, created = Author.objects.get_or_create(name=author_name)
+
+        # Get or create the Genre
+        genre, created = Genre.objects.get_or_create(name=genre_name)
+
+        # Create the Book instance
+        book = Book.objects.create(author=author, genre=genre, **validated_data)
+
+        # Create the specified number of BookCopies
+        if copy_number > 0:
+            book_copies = [BookCopies(book=book, is_available=True) for _ in range(copy_number)]
+            BookCopies.objects.bulk_create(book_copies)
 
         return book
+
+    def validate_isbn(self, value):
+        """
+        Validate the ISBN using python-stdnum.
+        """
+        if not stdnum_isbn.is_valid(value):
+            raise serializers.ValidationError("Invalid ISBN format.")
+        return stdnum_isbn.compact(value)  # Normalize the ISBN

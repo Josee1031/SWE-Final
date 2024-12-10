@@ -1,9 +1,9 @@
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager #type: ignore
-from django.db import models # type: ignore
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.db import models
 
 class UserManager(BaseUserManager):
     """
-    Custom manager for the User model.
+    Custom manager for the User model that uses email instead of username.
     """
 
     def create_user(self, email, password=None, **extra_fields):
@@ -22,30 +22,28 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
 
-        if not extra_fields.get('is_staff'):
+        if extra_fields.get('is_staff') is not True:
             raise ValueError("Superuser must have is_staff=True.")
-        if not extra_fields.get('is_superuser'):
+        if extra_fields.get('is_superuser') is not True:
             raise ValueError("Superuser must have is_superuser=True.")
 
         return self.create_user(email, password, **extra_fields)
 
 
-class User(AbstractBaseUser):
+class User(AbstractBaseUser, PermissionsMixin):
     """
     Custom User model that uses email instead of username.
     """
     user_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=100)
     email = models.EmailField(max_length=100, unique=True)
-    password = models.CharField(max_length=128)  # Provided by AbstractBaseUser
     is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)  # Determines if user is active
-    is_superuser = models.BooleanField(default=False)  # Superuser/admin flag
+    is_active = models.BooleanField(default=True)  # Determines if the user is active
 
-    # Custom manager for the User model
+    # Use the custom manager
     objects = UserManager()
 
-    # Use email for login instead of username
+    # Use email as the unique identifier for login
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name']
 

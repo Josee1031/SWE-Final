@@ -38,10 +38,10 @@ import { useBookSearch } from '@/hooks/useBookSearch'
 
 // Mock data for due book reservations
 const dueReservations = [
-  { id: 1, title: "To Kill a Mockingbird", user: "John Doe", dueTime: "14:00" },
-  { id: 2, title: "1984", user: "Jane Smith", dueTime: "15:30" },
-  { id: 3, title: "Pride and Prejudice", user: "Alice Johnson", dueTime: "16:45" },
-  { id: 4, title: "The Great Gatsby", user: "Bob Wilson", dueTime: "17:15" },
+  { id: 1, title: "To Kill a Mockingbird", user: "John Doe", dueTime: "12-12-2024" },
+  { id: 2, title: "1984", user: "Jane Smith", dueTime: "12-12-2024" },
+  { id: 3, title: "Pride and Prejudice", user: "Alice Johnson", dueTime: "12-12-2024" },
+  { id: 4, title: "The Great Gatsby", user: "Bob Wilson", dueTime: "12-12-2024" },
 ]
 
 function StaffHomePageContent() {
@@ -70,7 +70,7 @@ function StaffHomePageContent() {
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Catalog
+                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -79,12 +79,7 @@ function StaffHomePageContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/reservations')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Reservations
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            
           </SidebarMenu>
         </SidebarContent>
         

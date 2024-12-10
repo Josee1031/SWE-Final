@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'myapp',
+    'rest_framework.authtoken',
 ]
 
 MIDDLEWARE = [
@@ -115,13 +116,21 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # Use JWT for authentication
+        'rest_framework.authentication.TokenAuthentication',  # Use JWT for authentication
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.AllowAny'
+        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated',
     ),
 }
+
 AUTH_USER_MODEL = 'myapp.User'
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
