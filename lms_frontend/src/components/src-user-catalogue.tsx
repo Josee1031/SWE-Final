@@ -1,8 +1,7 @@
 'use client'
-
-import { useNavigate } from 'react-router-dom'
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,7 +30,8 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, BookOpen, CalendarIcon, User, HelpCircle, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, BookOpen, CalendarIcon, Users, Menu, Search, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface Book {
   book_id: number;
@@ -40,8 +40,8 @@ interface Book {
   isbn: string;
   genre_name: string;
   is_available: boolean;
+  copy_number: number;
 }
-
 
 function CatalogueContent() {
   const navigate = useNavigate();
@@ -56,26 +56,27 @@ function CatalogueContent() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const booksPerPage = 8;
+  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchBooks = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/");
-        setBooks(response.data);
-        const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
-        setGenres(fetchedGenres);
-      } catch (error) {
-        console.error("Error fetching books:", error);
-        setError("Failed to fetch books. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchBooks();
   }, []);
+
+  const fetchBooks = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/");
+      setBooks(response.data);
+      const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
+      setGenres(fetchedGenres);
+    } catch (error) {
+      console.error("Error fetching books:", error);
+      setError("Failed to fetch books. Please try again later.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,6 +88,10 @@ function CatalogueContent() {
       prev.includes(genre) ? prev.filter((g) => g !== genre) : [...prev, genre]
     );
     setCurrentPage(1);
+  };
+
+  const handleReserve = (book: Book) => {
+    navigate(`/book-reservation/${book.book_id}`);
   };
 
   const filteredBooks = books
@@ -119,7 +124,7 @@ function CatalogueContent() {
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/customer')}>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/customer-home')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>
@@ -130,10 +135,19 @@ function CatalogueContent() {
                 Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/users')}>
+                <Users className="mr-2 h-4 w-4" />
+                Users
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             
           </SidebarMenu>
         </SidebarContent>
-        
+        <SidebarFooter className="border-t mt-auto">
+          <SidebarMenu>
+          </SidebarMenu>
+        </SidebarFooter>
       </Sidebar>
 
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -145,19 +159,21 @@ function CatalogueContent() {
               </Button>
               <h1 className="text-2xl font-bold">Book Catalogue</h1>
             </div>
-            <form onSubmit={handleSearch} className="flex-1 flex items-center justify-end max-w-md ml-4">
-              <Input
-                type="search"
-                placeholder="Search books..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mr-2"
-              />
-              <Button type="submit" size="icon">
-                <Search className="h-4 w-4" />
-                <span className="sr-only">Search</span>
-              </Button>
-            </form>
+            <div className="flex items-center space-x-4">
+              <form onSubmit={handleSearch} className="flex items-center">
+                <Input
+                  type="search"
+                  placeholder="Search books..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mr-2"
+                />
+                <Button type="submit" size="icon">
+                  <Search className="h-4 w-4" />
+                  <span className="sr-only">Search</span>
+                </Button>
+              </form>
+            </div>
             <SidebarTrigger className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -230,6 +246,7 @@ function CatalogueContent() {
                         <p className="text-sm text-gray-600 mb-2">{book.author_name}</p>
                         <p className="text-sm mb-1">Genre: {book.genre_name}</p>
                         <p className="text-sm mb-1">ISBN: {book.isbn}</p>
+                        <p className="text-sm mb-1">Copies: {book.copy_number}</p>
                         <p
                           className={`text-sm font-semibold ${
                             book.is_available ? "text-green-600" : "text-red-600"
@@ -237,6 +254,7 @@ function CatalogueContent() {
                         >
                           {book.is_available ? "Available" : "Not Available"}
                         </p>
+                        
                       </CardContent>
                     </Card>
                   ))}
@@ -274,3 +292,4 @@ export default function UserCataloguePage() {
     </SidebarProvider>
   );
 }
+

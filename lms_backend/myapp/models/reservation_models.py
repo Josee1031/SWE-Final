@@ -2,16 +2,18 @@ from django.db import models #type:ignore
 from . import User, Book, BookCopies
 
 class Reservations(models.Model):
-    """
-    Table for reservations.
-    """
     reservation_id = models.AutoField(primary_key=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     copy = models.ForeignKey(BookCopies, on_delete=models.CASCADE)
     book = models.ForeignKey(Book, on_delete=models.CASCADE)
     start_date = models.DateField()
     due_date = models.DateField()
-    returned = models.BooleanField(default=False)
+    # Remove 'returned' field
+
+    @property
+    def returned(self):
+        # If a copy is available again, it implies it has been returned.
+        return self.copy.is_available
 
     def __str__(self):
         return str(self.reservation_id)

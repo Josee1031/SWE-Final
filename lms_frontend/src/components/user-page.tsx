@@ -65,7 +65,7 @@ function UsersContent() {
   const handleDelete = async (userId: number) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/users/${userId}`);
+        await axios.delete(`http://127.0.0.1:8000/api/users/${userId}/`);
         toast({
           title: "User Deleted",
           description: "The user has been successfully deleted.",
@@ -106,7 +106,7 @@ function UsersContent() {
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Catalog
+                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -115,12 +115,7 @@ function UsersContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/reservations')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Reservations
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            
 
           </SidebarMenu>
           </SidebarContent>

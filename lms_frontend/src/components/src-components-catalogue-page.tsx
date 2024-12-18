@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -47,7 +48,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, BookOpen, CalendarIcon, Users,  Menu, Search, ChevronLeft, ChevronRight, CalendarPlus, Edit, Trash2 } from 'lucide-react';
+import { Home, BookOpen, CalendarIcon, Users, Menu, Search, ChevronLeft, ChevronRight, CalendarPlus, Edit, Trash2, Plus } from 'lucide-react';
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -60,6 +61,7 @@ interface Book {
   isbn: string;
   genre_name: string;
   is_available: boolean;
+  copy_number: number;
 }
 
 const bookSchema = z.object({
@@ -67,7 +69,7 @@ const bookSchema = z.object({
   author_name: z.string().min(1, "Author name is required"),
   isbn: z.string().min(1, "ISBN is required"),
   genre_name: z.string().min(1, "Genre is required"),
-  is_available: z.boolean(),
+  copy_number: z.number().int().min(1, "At least one copy is required"),
 });
 
 function CatalogueContent() {
@@ -83,8 +85,9 @@ function CatalogueContent() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModifyDialogOpen, setIsModifyDialogOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const booksPerPage = 12;
+  const booksPerPage = 8;
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bookSchema>>({
@@ -94,7 +97,7 @@ function CatalogueContent() {
       author_name: "",
       isbn: "",
       genre_name: "",
-      is_available: true,
+      copy_number: 1,
     },
   });
 
@@ -160,6 +163,26 @@ function CatalogueContent() {
     }
   };
 
+  const addBook = async (data: z.infer<typeof bookSchema>) => {
+    try {
+      await axios.post("http://127.0.0.1:8000/api/books/", data);
+      toast({
+        title: "Book Added",
+        description: "The book has been successfully added.",
+      });
+      setIsAddDialogOpen(false);
+      form.reset();
+      fetchBooks();
+    } catch (error) {
+      console.error("Error adding book:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add the book. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const onSubmit = async (data: z.infer<typeof bookSchema>) => {
     if (!selectedBook) return;
     try {
@@ -202,15 +225,15 @@ function CatalogueContent() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
-          <h1 className="text-xl font-bold mt-2 mb-2">Bookworm Library</h1>
+          <h1 className="text-xl font-bold mt-2 mb-2">Finger Down Library</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
-          <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
+            <SidebarMenuItem>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff-home')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>
@@ -218,7 +241,7 @@ function CatalogueContent() {
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Catalog
+                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -227,24 +250,16 @@ function CatalogueContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/reservations')}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                Reservations
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
             
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="border-t mt-auto">
           <SidebarMenu>
-            
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden pb-20">
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center">
@@ -253,19 +268,127 @@ function CatalogueContent() {
               </Button>
               <h1 className="text-2xl font-bold">Book Catalogue</h1>
             </div>
-            <form onSubmit={handleSearch} className="flex-1 flex items-center justify-end max-w-md ml-4">
-              <Input
-                type="search"
-                placeholder="Search books..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="mr-2"
-              />
-              <Button type="submit" size="icon">
-                <Search className="h-4 w-4" />
-                <span className="sr-only">Search</span>
-              </Button>
-            </form>
+            <div className="flex items-center space-x-4">
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Book
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Book</DialogTitle>
+                    <DialogDescription>
+                      Enter the details of the new book below.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(addBook)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Title</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="author_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Author Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="isbn"
+                        rules={{
+                          required: "ISBN is required",
+                          pattern: {
+                            value: /^(?:\d{10}|\d{13})$/,
+                            message: "Invalid ISBN format"
+                          }
+                        }}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>ISBN</FormLabel>
+                            <FormControl>
+                              <Input {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="genre_name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Genre</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a genre" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {genres.map((genre) => (
+                                  <SelectItem key={genre} value={genre}>
+                                    {genre}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="copy_number"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Number of Copies</FormLabel>
+                            <FormControl>
+                              <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button type="submit">Add Book</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+              <form onSubmit={handleSearch} className="flex items-center">
+                <Input
+                  type="search"
+                  placeholder="Search books..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="mr-2"
+                />
+                <Button type="submit" size="icon">
+                  <Search className="h-4 w-4" />
+                  <span className="sr-only">Search</span>
+                </Button>
+              </form>
+            </div>
             <SidebarTrigger className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />
@@ -338,6 +461,7 @@ function CatalogueContent() {
                         <p className="text-sm text-gray-600 mb-2">{book.author_name}</p>
                         <p className="text-sm mb-1">Genre: {book.genre_name}</p>
                         <p className="text-sm mb-1">ISBN: {book.isbn}</p>
+                        <p className="text-sm mb-1">Copies: {book.copy_number}</p>
                         <p
                           className={`text-sm font-semibold ${
                             book.is_available ? "text-green-600" : "text-red-600"
@@ -439,18 +563,25 @@ function CatalogueContent() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="isbn"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ISBN</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <FormField
+              control={form.control}
+              name="isbn"
+              rules={{
+                required: "ISBN is required",
+                pattern: {
+                  value: /^(?:\d{10}|\d{13})$/,
+                  message: "Invalid ISBN format"
+                }
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ISBN</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
               />
               <FormField
                 control={form.control}
@@ -467,20 +598,14 @@ function CatalogueContent() {
               />
               <FormField
                 control={form.control}
-                name="is_available"
+                name="copy_number"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem>
+                    <FormLabel>Number of Copies</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Available
-                      </FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -502,3 +627,4 @@ export default function CataloguePage() {
     </SidebarProvider>
   );
 }
+

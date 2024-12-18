@@ -1,8 +1,8 @@
 from rest_framework.views import APIView # type: ignore
 from rest_framework.response import Response # type: ignore
 from myapp.models import User
-from rest_framework.permissions import AllowAny
-from rest_framework import status
+from rest_framework.permissions import AllowAny # type: ignore
+from rest_framework import status # type: ignore
 from myapp.models import User
 
 class UserDetailView(APIView):

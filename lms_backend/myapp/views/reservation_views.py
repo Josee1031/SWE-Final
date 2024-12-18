@@ -1,12 +1,10 @@
 from rest_framework.views import APIView  # type: ignore
 from rest_framework.response import Response  # type: ignore
-from rest_framework.permissions import AllowAny  # type: ignore
 from rest_framework import status  # type: ignore
-from myapp.models import Reservations, User
+from myapp.models import Reservations, User, BookCopies
 from myapp.serializers.reservation_serializers import ReservationSerializer
 from datetime import timedelta, datetime
-
-
+from rest_framework.permissions import AllowAny
 class ReservationListView(APIView):
     """
     API view to handle creating, retrieving, and updating reservations.
@@ -16,12 +14,14 @@ class ReservationListView(APIView):
     def get(self, request):
         """
         Retrieve reservations with optional filtering by `book_id` and `returned`.
-        If no query parameters are provided, return all reservations.
+        `returned` now correlates to `copy.is_available`.
+        
+        If `returned=true`, we filter reservations where `copy.is_available=True`.
+        If `returned=false`, we filter reservations where `copy.is_available=False`.
         """
         try:
-            # Get query parameters
-            book_id = request.query_params.get("book_id", None)  # Default to None if not provided
-            returned = request.query_params.get("returned", None)  # Default to None if not provided
+            book_id = request.query_params.get("book_id", None)
+            returned = request.query_params.get("returned", None)
 
             # Start with all reservations
             reservations = Reservations.objects.all()
@@ -30,24 +30,22 @@ class ReservationListView(APIView):
             if book_id:
                 reservations = reservations.filter(book_id=book_id)
 
-            # Filter by returned if provided
+            # Filter by returned if provided, interpreting returned as availability
             if returned is not None:
                 returned_bool = returned.lower() == "true"
-                reservations = reservations.filter(returned=returned_bool)
+                # Filter by copy availability instead of reservation returned field
+                reservations = reservations.filter(copy__is_available=returned_bool)
 
-            # Serialize the filtered or full queryset
             serializer = ReservationSerializer(reservations, many=True)
-
-            # Return serialized data
             return Response(serializer.data, status=200)
         except Exception as e:
-            print(f"Error: {e}")  # Debug: Log error for development purposes
+            print(f"Error: {e}")
             return Response({"error": str(e)}, status=500)
-
 
     def post(self, request):
         """
-        Create a new reservation.
+        Create a new reservation. When a reservation is created,
+        set the copy's is_available to False, indicating it's checked out.
         """
         required_fields = ["email", "book_id", "copy_id", "start_date"]
         for field in required_fields:
@@ -85,38 +83,41 @@ class ReservationListView(APIView):
             "copy": copy_id,
             "start_date": start_date_obj,
             "due_date": due_date,
-            "returned": False,
+            # 'returned' removed from the model, no need to set it
         }
 
         serializer = ReservationSerializer(data=data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            reservation = serializer.save()
+
+            # Mark the copy as no longer available since it's reserved
+            copy = BookCopies.objects.get(pk=copy_id)
+            copy.is_available = False
+            copy.save()
+
+            # Re-serialize to reflect updated data
+            reservation_serializer = ReservationSerializer(reservation)
+            return Response(reservation_serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, reservation_id):
         """
-        Mark a reservation as returned and set the associated book copy as available.
+        Mark a reservation as returned by making the copy available again.
         """
         try:
-            # Retrieve the reservation
             reservation = Reservations.objects.get(reservation_id=reservation_id)
         except Reservations.DoesNotExist:
             return Response({"error": "Reservation not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Update reservation and copy availability
-        if reservation.returned:
+        # If the copy is already available, it means the book is effectively returned
+        if reservation.copy.is_available:
             return Response(
-                {"error": "This reservation has already been marked as returned."},
+                {"error": "This reservation's copy is already available (already returned)."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Mark the reservation as returned
-        reservation.returned = True
-        reservation.save()
-
-        # Update the book copy's availability
+        # Make the copy available again, which implies the book is returned
         copy = reservation.copy
         copy.is_available = True
         copy.save()
@@ -124,7 +125,7 @@ class ReservationListView(APIView):
         serializer = ReservationSerializer(reservation)
         return Response(
             {
-                "message": "Reservation marked as returned and book copy set to available.",
+                "message": "Reservation is considered returned as the copy is now available.",
                 "reservation": serializer.data,
                 "copy_id": copy.copy_id,
                 "is_available": copy.is_available,
@@ -133,6 +134,27 @@ class ReservationListView(APIView):
         )
 
 
+
+class ReservationDetailView(APIView):
+    def put(self, request, reservation_id):
+        try:
+            reservation = Reservations.objects.get(reservation_id=reservation_id)
+        except Reservations.DoesNotExist:
+            return Response({"error": "Reservation not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Business logic for updating the reservation
+        copy = reservation.copy
+        if copy.is_available:
+            return Response(
+                {"error": "This reservation's copy is already available (already returned)."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Mark the copy as available
+        copy.is_available = True
+        copy.save()
+
+        return Response({"message": "Reservation updated successfully.", "copy_id": copy.copy_id}, status=status.HTTP_200_OK)
 
 
 class ExtendReservationView(APIView):
