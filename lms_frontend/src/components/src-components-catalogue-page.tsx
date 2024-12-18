@@ -87,7 +87,7 @@ function CatalogueContent() {
   const [isModifyDialogOpen, setIsModifyDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const booksPerPage = 12;
+  const booksPerPage = 8;
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bookSchema>>({
@@ -225,10 +225,10 @@ function CatalogueContent() {
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
-          <h1 className="text-xl font-bold mt-2 mb-2">Bookworm Library</h1>
+          <h1 className="text-xl font-bold mt-2 mb-2">Finger Down Library</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
@@ -259,7 +259,7 @@ function CatalogueContent() {
         </SidebarFooter>
       </Sidebar>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden pb-20">
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center">
@@ -314,6 +314,13 @@ function CatalogueContent() {
                       <FormField
                         control={form.control}
                         name="isbn"
+                        rules={{
+                          required: "ISBN is required",
+                          pattern: {
+                            value: /^(?:\d{10}|\d{13})$/,
+                            message: "Invalid ISBN format"
+                          }
+                        }}
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>ISBN</FormLabel>
@@ -556,18 +563,25 @@ function CatalogueContent() {
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name="isbn"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>ISBN</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+            <FormField
+              control={form.control}
+              name="isbn"
+              rules={{
+                required: "ISBN is required",
+                pattern: {
+                  value: /^(?:\d{10}|\d{13})$/,
+                  message: "Invalid ISBN format"
+                }
+              }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>ISBN</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
               />
               <FormField
                 control={form.control}
@@ -584,20 +598,14 @@ function CatalogueContent() {
               />
               <FormField
                 control={form.control}
-                name="is_available"
+                name="copy_number"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormItem>
+                    <FormLabel>Number of Copies</FormLabel>
                     <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
                     </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        Available
-                      </FormLabel>
-                    </div>
+                    <FormMessage />
                   </FormItem>
                 )}
               />

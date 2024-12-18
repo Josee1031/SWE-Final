@@ -114,7 +114,7 @@ function CatalogueContent() {
     <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
-          <h1 className="text-xl font-bold mt-2 mb-2">Bookworm Library</h1>
+          <h1 className="text-xl font-bold mt-2 mb-2">Finger Down Library</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>

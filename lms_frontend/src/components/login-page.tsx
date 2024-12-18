@@ -61,7 +61,7 @@ const LoginPage: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">Welcome to Bookworm</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Welcome to Finger Down Library</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'login' | 'signup')}>

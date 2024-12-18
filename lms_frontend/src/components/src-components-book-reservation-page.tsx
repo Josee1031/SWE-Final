@@ -230,7 +230,7 @@ function BookReservationPageContent() {
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Catalog
+                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

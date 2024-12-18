@@ -57,12 +57,12 @@ function StaffHomePageContent() {
     <div className="flex h-screen bg-background w-screen">
       <Sidebar className="w-64 flex-shrink-0 transition-all duration-300">
         <SidebarHeader className="px-4 py-5 border-b">
-          <h1 className="text-xl font-bold">Bookworm Staff</h1>
+          <h1 className="text-xl font-bold">Finger Down Staff</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff-home')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>

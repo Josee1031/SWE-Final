@@ -66,8 +66,7 @@ function CustomerHomePageContent() {
       try {
         // Mocking pending reservations data
         const mockReservations: Reservation[] = [
-          { id: 1, book_title: "Book 1", reservation_date: "2023-06-01", status: "Pending" },
-          { id: 2, book_title: "Book 2", reservation_date: "2023-06-03", status: "Pending" },
+
         ]
         setPendingReservations(mockReservations)
       } catch (error) {
@@ -103,12 +102,12 @@ function CustomerHomePageContent() {
     <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
-          <h1 className="text-xl font-bold mt-2 mb-2">Bookworm Library</h1>
+          <h1 className="text-xl font-bold mt-2 mb-2">Finger Down Library</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/customer')}>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/customer-home')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
               </SidebarMenuButton>
@@ -188,14 +187,20 @@ function CustomerHomePageContent() {
                   <CardTitle>Pending Reservations</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {pendingReservations.map((reservation) => (
+                {pendingReservations.length > 0 ? (
+                  pendingReservations.map((reservation) => (
                     <div key={reservation.id} className="mb-2">
                       <p className="font-semibold">{reservation.book_title}</p>
                       <p className="text-sm text-gray-500">
                         Date: {reservation.reservation_date}
                       </p>
                     </div>
-                  ))}
+                  ))
+                ) : (
+                  <div className="mb-2">
+                    <p className="text-sm text-gray-500">No pending Reservations</p>
+                  </div>
+                )}
                 </CardContent>
               </Card>
             </div>

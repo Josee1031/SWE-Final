@@ -16,7 +16,7 @@ const LogoutFooter: React.FC = () => {
   const { logout } = useUser()
 
   return (
-    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4">
+    <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 mt-6">
       <div className="container mx-auto flex justify-end">
         <Button onClick={logout} variant="outline" size="sm">
           <LogOut className="mr-2 h-4 w-4" /> Logout
