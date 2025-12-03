@@ -2,8 +2,7 @@
 
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import axios from "axios";
-import { API_BASE_URL } from '@/config/api';
+import { api } from '@/config/api';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -53,7 +52,7 @@ function UsersContent() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get<UserData[]>(`${API_BASE_URL}/api/users/`);
+      const response = await api.get<UserData[]>(`/api/users/`);
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -66,7 +65,7 @@ function UsersContent() {
   const handleDelete = async (userId: number) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`${API_BASE_URL}/api/users/${userId}/`);
+        await api.delete(`/api/users/${userId}/`);
         toast({
           title: "User Deleted",
           description: "The user has been successfully deleted.",

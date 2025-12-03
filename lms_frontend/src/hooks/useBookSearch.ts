@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '@/config/api'
+import { api } from '@/config/api'
 
 interface Book {
   book_id: number
@@ -20,7 +19,7 @@ export function useBookSearch() {
       if (searchQuery.length > 2) {
         setIsSearching(true)
         try {
-          const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/?q=${searchQuery}`)
+          const response = await api.get<Book[]>(`/api/books/?q=${searchQuery}`)
           setRecommendations(response.data.slice(0, 5)) // Limit to 5 recommendations
           setHasSearched(true)
         } catch (error) {

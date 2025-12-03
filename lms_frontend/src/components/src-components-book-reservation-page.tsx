@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
-import { API_BASE_URL } from '@/config/api'
+import { api } from '@/config/api'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -110,7 +110,7 @@ function BookReservationPageContent() {
   useEffect(() => {
     const fetchBookDetails = async () => {
       try {
-        const response = await axios.get<BookDetails>(`${API_BASE_URL}/api/books/${bookId}/`);
+        const response = await api.get<BookDetails>(`/api/books/${bookId}/`);
         setBookDetails(response.data);
         setCopies(response.data.copies);
       } catch (error) {
@@ -125,7 +125,7 @@ function BookReservationPageContent() {
 
     const fetchReservations = async () => {
       try {
-        const response = await axios.get<Reservation[]>(`${API_BASE_URL}/api/reservations/?book_id=${bookId}&returned=false`);
+        const response = await api.get<Reservation[]>(`/api/reservations/?book_id=${bookId}&returned=false`);
         setReservations(response.data);
       } catch (error) {
         console.error('Error fetching reservations:', error);
@@ -155,8 +155,8 @@ function BookReservationPageContent() {
   const handleExtendDeadline = async (reservation_id: number) => {
     try {
       // Make the PUT request to extend the deadline
-      const response = await axios.put(
-        `${API_BASE_URL}/api/reservations/${reservation_id}/extend/`
+      const response = await api.put(
+        `/api/reservations/${reservation_id}/extend/`
       );
   
       if (response.status === 200) {
@@ -195,7 +195,7 @@ function BookReservationPageContent() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/reservations/`, {
+      const response = await api.post(`/api/reservations/`, {
         email: email,
         book_id: bookDetails.book_id,
         copy_id: selectedCopyId,
@@ -231,7 +231,7 @@ function BookReservationPageContent() {
 
   const handleCopyStatus = async (bookId: number, copyId: number) => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/books/${bookId}/copies/${copyId}/`, {
+      const response = await api.put(`/api/books/${bookId}/copies/${copyId}/`, {
         is_available: true
       });
 

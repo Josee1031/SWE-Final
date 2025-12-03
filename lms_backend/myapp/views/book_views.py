@@ -1,6 +1,5 @@
 from rest_framework.views import APIView  # type: ignore
 from rest_framework.response import Response  # type: ignore
-from rest_framework.permissions import AllowAny  # type: ignore
 from rest_framework import status  # type: ignore
 from myapp.models import Book, BookCopies, Reservations, Author, Genre
 from myapp.serializers.book_serializers import BookSerializer, BookCopySerializer
@@ -10,11 +9,14 @@ import logging
 from django.db import transaction
 import re
 from stdnum import isbn as stdnum_isbn
+from myapp.permissions import IsStaffOrReadOnly, IsStaffUser
+from myapp.utils import sanitize_string
+
 logger = logging.getLogger(__name__)
 
 
 class BookListView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsStaffOrReadOnly]
 
     def get(self, request):
         search_query = request.query_params.get("q", None)
@@ -34,10 +36,11 @@ class BookListView(APIView):
     def post(self, request):
         """
         Create a new book using the `BookAPIView` logic.
+        Only staff can create books (enforced by IsStaffOrReadOnly permission).
         """
-        author_name = request.data.get("author_name")
-        genre_name = request.data.get("genre_name")
-        title = request.data.get("title")
+        author_name = sanitize_string(request.data.get("author_name"))
+        genre_name = sanitize_string(request.data.get("genre_name"))
+        title = sanitize_string(request.data.get("title"))
         isbn = request.data.get("isbn")
         copy_number = request.data.get("copy_number", 1)
 
@@ -66,13 +69,13 @@ class BookListView(APIView):
         isbn = stdnum_isbn.compact(isbn)
 
         try:
-            # Get or create the author and genre
-            author, _ = Author.objects.get_or_create(name=author_name.strip())
-            genre, _ = Genre.objects.get_or_create(name=genre_name.strip())
+            # Get or create the author and genre (already sanitized above)
+            author, _ = Author.objects.get_or_create(name=author_name)
+            genre, _ = Genre.objects.get_or_create(name=genre_name)
 
-            # Create the book
+            # Create the book (title already sanitized above)
             book = Book.objects.create(
-                title=title.strip(),
+                title=title,
                 isbn=isbn,
                 author=author,
                 genre=genre,
@@ -98,7 +101,7 @@ class BookListView(APIView):
 
 
 class BookDetailView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsStaffOrReadOnly]
 
     def get(self, request, book_id):
         try:
@@ -152,8 +155,9 @@ class BookDetailView(APIView):
 class BookCopyUpdateView(APIView):
     """
     API view to toggle the availability of a book copy and update the reservation status.
+    Only staff can mark books as returned.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsStaffUser]
 
     def put(self, request, book_id, copy_number):
         """

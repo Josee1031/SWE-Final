@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { API_BASE_URL } from '@/config/api'
+import { api } from '@/config/api'
 import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -57,7 +56,7 @@ function CustomerHomePageContent() {
       try {
         setIsLoading(true)
         setError(null)
-        const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`)
+        const response = await api.get<Book[]>(`/api/books/`)
         setFeaturedBooks(response.data.slice(0, 6)) // Assuming we want to feature the first 4 books
       } catch (error) {
         console.error("Error fetching featured books:", error)
@@ -88,7 +87,7 @@ function CustomerHomePageContent() {
       if (searchQuery.length > 2) {
         setIsSearching(true)
         try {
-          const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/?q=${searchQuery}`)
+          const response = await api.get<Book[]>(`/api/books/?q=${searchQuery}`)
           setSearchResults(response.data.slice(0, 5)) // Limit to 5 results
           setHasSearched(true)
         } catch (error) {

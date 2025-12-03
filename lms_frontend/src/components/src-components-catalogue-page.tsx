@@ -1,7 +1,6 @@
 'use client'
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_BASE_URL } from '@/config/api';
+import { api } from '@/config/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,7 +139,7 @@ function CatalogueContent() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`);
+      const response = await api.get<Book[]>(`/api/books/`);
       setBooks(response.data);
       const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
       setGenres(fetchedGenres);
@@ -177,7 +176,7 @@ function CatalogueContent() {
   const handleDelete = async (bookId: number) => {
     if (window.confirm("Are you sure you want to delete this book?")) {
       try {
-        await axios.delete(`${API_BASE_URL}/api/books/${bookId}/`);
+        await api.delete(`/api/books/${bookId}/`);
         toast({
           title: "Book Deleted",
           description: "The book has been successfully deleted.",
@@ -196,7 +195,7 @@ function CatalogueContent() {
 
   const addBook = async (data: z.infer<typeof bookSchema>) => {
     try {
-      await axios.post(`${API_BASE_URL}/api/books/`, data);
+      await api.post(`/api/books/`, data);
       toast({
         title: "Book Added",
         description: "The book has been successfully added.",
@@ -217,7 +216,7 @@ function CatalogueContent() {
   const onSubmit = async (data: z.infer<typeof bookSchema>) => {
     if (!selectedBook) return;
     try {
-      await axios.put(`${API_BASE_URL}/api/books/${selectedBook.book_id}/`, data);
+      await api.put(`/api/books/${selectedBook.book_id}/`, data);
       toast({
         title: "Book Updated",
         description: "The book has been successfully updated.",

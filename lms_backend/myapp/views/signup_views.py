@@ -4,15 +4,20 @@ from rest_framework import status
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
+from myapp.utils import sanitize_string
+import logging
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
+
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Extract fields
-        name = request.data.get('name')
+        # Extract and sanitize fields
+        name = sanitize_string(request.data.get('name'))
         email = request.data.get('email')
         password = request.data.get('password')
 
@@ -28,7 +33,7 @@ class SignupAPIView(APIView):
         try:
             user = User.objects.create_user(name=name, email=email, password=password)
         except Exception as e:
-            print(f"Error creating user: {e}")
+            logger.error(f"Error creating user: {e}")
             return Response({"error": "Failed to create user"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Generate tokens

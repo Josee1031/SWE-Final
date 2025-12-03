@@ -2,8 +2,7 @@
 
 import { useNavigate } from 'react-router-dom'
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { API_BASE_URL } from '@/config/api';
+import { api } from '@/config/api';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -62,7 +61,7 @@ function CatalogueContent() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`);
+        const response = await api.get<Book[]>(`/api/books/`);
         setBooks(response.data);
         const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
         setGenres(fetchedGenres);

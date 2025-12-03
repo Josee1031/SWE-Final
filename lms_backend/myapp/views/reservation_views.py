@@ -1,30 +1,36 @@
 from rest_framework.views import APIView  # type: ignore
 from rest_framework.response import Response  # type: ignore
 from rest_framework import status  # type: ignore
+from rest_framework.permissions import IsAuthenticated  # type: ignore
 from myapp.models import Reservations, User, BookCopies
 from myapp.serializers.reservation_serializers import ReservationSerializer
 from datetime import timedelta, datetime
-from rest_framework.permissions import AllowAny
+from myapp.permissions import IsStaffUser
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 class ReservationListView(APIView):
     """
     API view to handle creating, retrieving, and updating reservations.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         """
         Retrieve reservations with optional filtering by `book_id` and `returned`.
-        `returned` now correlates to `copy.is_available`.
-        
-        If `returned=true`, we filter reservations where `copy.is_available=True`.
-        If `returned=false`, we filter reservations where `copy.is_available=False`.
+        Staff sees all reservations, customers see only their own.
         """
         try:
+            # Staff sees all, customer sees only their own
+            if request.user.is_staff:
+                reservations = Reservations.objects.all()
+            else:
+                reservations = Reservations.objects.filter(user=request.user)
+
             book_id = request.query_params.get("book_id", None)
             returned = request.query_params.get("returned", None)
-
-            # Start with all reservations
-            reservations = Reservations.objects.all()
 
             # Filter by book_id if provided
             if book_id:
@@ -33,20 +39,24 @@ class ReservationListView(APIView):
             # Filter by returned if provided, interpreting returned as availability
             if returned is not None:
                 returned_bool = returned.lower() == "true"
-                # Filter by copy availability instead of reservation returned field
                 reservations = reservations.filter(copy__is_available=returned_bool)
 
             serializer = ReservationSerializer(reservations, many=True)
             return Response(serializer.data, status=200)
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error fetching reservations: {e}")
             return Response({"error": str(e)}, status=500)
 
     def post(self, request):
         """
         Create a new reservation. When a reservation is created,
         set the copy's is_available to False, indicating it's checked out.
+        Only staff can create reservations.
         """
+        # Only staff can create reservations
+        if not request.user.is_staff:
+            return Response({"error": "Only staff can create reservations"}, status=status.HTTP_403_FORBIDDEN)
+
         required_fields = ["email", "book_id", "copy_id", "start_date"]
         for field in required_fields:
             if not request.data.get(field):
@@ -136,6 +146,12 @@ class ReservationListView(APIView):
 
 
 class ReservationDetailView(APIView):
+    """
+    API view to mark reservations as returned.
+    Only staff can mark books as returned.
+    """
+    permission_classes = [IsStaffUser]
+
     def put(self, request, reservation_id):
         try:
             reservation = Reservations.objects.get(reservation_id=reservation_id)
@@ -160,23 +176,26 @@ class ReservationDetailView(APIView):
 class ExtendReservationView(APIView):
     """
     API view to extend the due date of a reservation.
+    Staff can extend any reservation, customers can only extend their own.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def put(self, request, reservation_id):
         """
         Extend the reservation's due date by 7 days.
         """
         try:
-            # Retrieve the reservation by ID
             reservation = Reservations.objects.get(reservation_id=reservation_id)
         except Reservations.DoesNotExist:
             return Response({"error": "Reservation not found."}, status=404)
+
+        # Staff can extend any, customer can only extend their own
+        if not request.user.is_staff and reservation.user.user_id != request.user.user_id:
+            return Response({"error": "Permission denied"}, status=403)
 
         # Extend the due_date by 7 days
         reservation.due_date += timedelta(days=7)
         reservation.save()
 
-        # Serialize the updated reservation
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data, status=200)
