@@ -7,6 +7,34 @@ from datetime import date, timedelta
 User = get_user_model()
 
 
+class AuthTestMixin:
+    """Mixin providing authentication helper methods for tests."""
+
+    def authenticate_as_staff(self):
+        """Create and authenticate as a staff user."""
+        staff = User.objects.create_user(
+            name='Staff Test User',
+            email='staff_test@example.com',
+            password='testpass123',
+            is_staff=True
+        )
+        response = self.client.post('/api/auth/sign-in/', {
+            'email': 'staff_test@example.com',
+            'password': 'testpass123'
+        }, format='json')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + response.data['access'])
+        return staff
+
+    def authenticate_as_user(self, user, password='password123'):
+        """Authenticate client as a specific user."""
+        response = self.client.post('/api/auth/sign-in/', {
+            'email': user.email,
+            'password': password
+        }, format='json')
+        self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + response.data['access'])
+        return user
+
+
 class AuthTests(APITestCase):
     """Tests for authentication endpoints."""
 
@@ -143,7 +171,7 @@ class UserMeTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
-class UserListTests(APITestCase):
+class UserListTests(AuthTestMixin, APITestCase):
     """Tests for GET /api/users/."""
 
     def setUp(self):
@@ -161,15 +189,27 @@ class UserListTests(APITestCase):
         )
 
     def test_user_list_excludes_staff(self):
-        """Test user list only returns non-staff users."""
+        """Test user list only returns non-staff users (staff only endpoint)."""
+        self.authenticate_as_staff()
         response = self.client.get('/api/users/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         emails = [user['email'] for user in response.data]
         self.assertIn('regular@example.com', emails)
         self.assertNotIn('staff@example.com', emails)
 
+    def test_user_list_requires_staff(self):
+        """Test regular users cannot access user list."""
+        self.authenticate_as_user(self.regular_user)
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
 
-class UserDetailTests(APITestCase):
+    def test_user_list_unauthenticated(self):
+        """Test unauthenticated access is denied."""
+        response = self.client.get('/api/users/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class UserDetailTests(AuthTestMixin, APITestCase):
     """Tests for /api/users/<id>/."""
 
     def setUp(self):
@@ -180,18 +220,21 @@ class UserDetailTests(APITestCase):
         )
 
     def test_get_user_detail(self):
-        """Test retrieving a user by ID."""
+        """Test owner can retrieve their own info."""
+        self.authenticate_as_user(self.user)
         response = self.client.get(f'/api/users/{self.user.user_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], 'testuser@example.com')
 
     def test_get_user_not_found(self):
         """Test 404 for non-existent user."""
+        self.authenticate_as_staff()
         response = self.client.get('/api/users/99999/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_user(self):
-        """Test updating a user's name."""
+        """Test owner can update their own name."""
+        self.authenticate_as_user(self.user)
         response = self.client.put(f'/api/users/{self.user.user_id}/', {
             'name': 'Updated Name'
         }, format='json')
@@ -199,13 +242,14 @@ class UserDetailTests(APITestCase):
         self.assertEqual(response.data['name'], 'Updated Name')
 
     def test_delete_user(self):
-        """Test deleting a user."""
+        """Test staff can delete a user."""
+        self.authenticate_as_staff()
         response = self.client.delete(f'/api/users/{self.user.user_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(User.objects.filter(user_id=self.user.user_id).exists())
 
 
-class BookListTests(APITestCase):
+class BookListTests(AuthTestMixin, APITestCase):
     """Tests for /api/books/."""
 
     def setUp(self):
@@ -220,32 +264,33 @@ class BookListTests(APITestCase):
         )
 
     def test_get_book_list(self):
-        """Test listing all books."""
+        """Test listing all books (public access)."""
         response = self.client.get('/api/books/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['title'], 'Test Book')
 
     def test_search_books_by_title(self):
-        """Test searching books by title."""
+        """Test searching books by title (public access)."""
         response = self.client.get('/api/books/', {'q': 'Test'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_search_books_by_author(self):
-        """Test searching books by author name."""
+        """Test searching books by author name (public access)."""
         response = self.client.get('/api/books/', {'q': 'Test Author'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_search_books_no_results(self):
-        """Test search with no matching results."""
+        """Test search with no matching results (public access)."""
         response = self.client.get('/api/books/', {'q': 'Nonexistent'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
     def test_create_book(self):
-        """Test creating a new book."""
+        """Test staff can create a new book."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/books/', {
             'author_name': 'New Author',
             'genre_name': 'Science Fiction',
@@ -258,6 +303,7 @@ class BookListTests(APITestCase):
 
     def test_create_book_missing_fields(self):
         """Test creating book fails with missing fields."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/books/', {
             'title': 'Incomplete Book'
         }, format='json')
@@ -265,6 +311,7 @@ class BookListTests(APITestCase):
 
     def test_create_book_invalid_isbn(self):
         """Test creating book fails with invalid ISBN."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/books/', {
             'author_name': 'Author',
             'genre_name': 'Genre',
@@ -274,7 +321,7 @@ class BookListTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class BookDetailTests(APITestCase):
+class BookDetailTests(AuthTestMixin, APITestCase):
     """Tests for /api/books/<id>/."""
 
     def setUp(self):
@@ -289,18 +336,19 @@ class BookDetailTests(APITestCase):
         )
 
     def test_get_book_detail(self):
-        """Test retrieving a book by ID."""
+        """Test retrieving a book by ID (public access)."""
         response = self.client.get(f'/api/books/{self.book.book_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['title'], 'Test Book')
 
     def test_get_book_not_found(self):
-        """Test 404 for non-existent book."""
+        """Test 404 for non-existent book (public access)."""
         response = self.client.get('/api/books/99999/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_update_book(self):
-        """Test updating a book."""
+        """Test staff can update a book."""
+        self.authenticate_as_staff()
         response = self.client.put(f'/api/books/{self.book.book_id}/', {
             'title': 'Updated Title'
         }, format='json')
@@ -308,13 +356,14 @@ class BookDetailTests(APITestCase):
         self.assertEqual(response.data['title'], 'Updated Title')
 
     def test_delete_book(self):
-        """Test deleting a book."""
+        """Test staff can delete a book."""
+        self.authenticate_as_staff()
         response = self.client.delete(f'/api/books/{self.book.book_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(Book.objects.filter(book_id=self.book.book_id).exists())
 
 
-class BookCopyUpdateTests(APITestCase):
+class BookCopyUpdateTests(AuthTestMixin, APITestCase):
     """Tests for PUT /api/books/<book_id>/copies/<copy_number>/."""
 
     def setUp(self):
@@ -344,7 +393,8 @@ class BookCopyUpdateTests(APITestCase):
         )
 
     def test_update_copy_with_reservation(self):
-        """Test returning a book copy that has a reservation."""
+        """Test staff can return a book copy that has a reservation."""
+        self.authenticate_as_staff()
         response = self.client.put(f'/api/books/{self.book.book_id}/copies/2/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.copy2.refresh_from_db()
@@ -352,11 +402,12 @@ class BookCopyUpdateTests(APITestCase):
 
     def test_update_copy_invalid_number(self):
         """Test invalid copy number returns error."""
+        self.authenticate_as_staff()
         response = self.client.put(f'/api/books/{self.book.book_id}/copies/999/')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
 
-class ReservationListTests(APITestCase):
+class ReservationListTests(AuthTestMixin, APITestCase):
     """Tests for /api/reservations/."""
 
     def setUp(self):
@@ -377,13 +428,15 @@ class ReservationListTests(APITestCase):
         )
 
     def test_get_reservations_empty(self):
-        """Test getting empty reservations list."""
+        """Test authenticated user gets their reservations."""
+        self.authenticate_as_user(self.user)
         response = self.client.get('/api/reservations/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
 
     def test_create_reservation(self):
-        """Test creating a new reservation."""
+        """Test staff can create a new reservation."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/reservations/', {
             'email': 'testuser@example.com',
             'book_id': self.book.book_id,
@@ -396,6 +449,7 @@ class ReservationListTests(APITestCase):
 
     def test_create_reservation_missing_fields(self):
         """Test reservation fails with missing fields."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/reservations/', {
             'email': 'testuser@example.com'
         }, format='json')
@@ -403,6 +457,7 @@ class ReservationListTests(APITestCase):
 
     def test_create_reservation_invalid_user(self):
         """Test reservation fails for non-existent user."""
+        self.authenticate_as_staff()
         response = self.client.post('/api/reservations/', {
             'email': 'nonexistent@example.com',
             'book_id': self.book.book_id,
@@ -412,7 +467,8 @@ class ReservationListTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_filter_reservations_by_book(self):
-        """Test filtering reservations by book_id."""
+        """Test filtering reservations by book_id (staff sees all)."""
+        self.authenticate_as_staff()
         Reservations.objects.create(
             user=self.user,
             book=self.book,
@@ -425,7 +481,7 @@ class ReservationListTests(APITestCase):
         self.assertEqual(len(response.data), 1)
 
 
-class ReservationDetailTests(APITestCase):
+class ReservationDetailTests(AuthTestMixin, APITestCase):
     """Tests for /api/reservations/<id>/."""
 
     def setUp(self):
@@ -453,7 +509,8 @@ class ReservationDetailTests(APITestCase):
         )
 
     def test_return_book(self):
-        """Test marking a book as returned via PUT."""
+        """Test staff can mark a book as returned via PUT."""
+        self.authenticate_as_staff()
         response = self.client.put(f'/api/reservations/{self.reservation.reservation_id}/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.copy.refresh_from_db()
@@ -461,6 +518,7 @@ class ReservationDetailTests(APITestCase):
 
     def test_return_already_returned(self):
         """Test returning an already returned book fails."""
+        self.authenticate_as_staff()
         self.copy.is_available = True
         self.copy.save()
         response = self.client.put(f'/api/reservations/{self.reservation.reservation_id}/')
@@ -468,11 +526,12 @@ class ReservationDetailTests(APITestCase):
 
     def test_return_nonexistent_reservation(self):
         """Test returning non-existent reservation fails."""
+        self.authenticate_as_staff()
         response = self.client.put('/api/reservations/99999/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
 
-class ExtendReservationTests(APITestCase):
+class ExtendReservationTests(AuthTestMixin, APITestCase):
     """Tests for PUT /api/reservations/<id>/extend/."""
 
     def setUp(self):
@@ -501,7 +560,8 @@ class ExtendReservationTests(APITestCase):
         )
 
     def test_extend_reservation(self):
-        """Test extending a reservation by 7 days."""
+        """Test owner can extend their reservation by 7 days."""
+        self.authenticate_as_user(self.user)
         response = self.client.put(f'/api/reservations/{self.reservation.reservation_id}/extend/')
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.reservation.refresh_from_db()
@@ -510,5 +570,6 @@ class ExtendReservationTests(APITestCase):
 
     def test_extend_nonexistent_reservation(self):
         """Test extending non-existent reservation fails."""
+        self.authenticate_as_user(self.user)
         response = self.client.put('/api/reservations/99999/extend/')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
