@@ -46,7 +46,7 @@ describe('LoginPage', () => {
     it('renders login form by default', () => {
       renderLoginPage()
 
-      expect(screen.getByText('Welcome to Finger Down Library')).toBeInTheDocument()
+      expect(screen.getByText('Welcome to Rooster Library')).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /login/i })).toBeInTheDocument()
       expect(screen.getByRole('tab', { name: /sign up/i })).toBeInTheDocument()
       expect(screen.getByLabelText(/email/i)).toBeInTheDocument()

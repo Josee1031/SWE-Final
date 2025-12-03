@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { API_BASE_URL } from '@/config/api'
 import { useNavigate } from 'react-router-dom'
@@ -112,7 +112,7 @@ function CustomerHomePageContent() {
     <div className="flex h-screen bg-gray-100 w-screen">
       <Sidebar className="w-64">
         <SidebarHeader className="px-4 py-3 border-b">
-          <h1 className="text-xl font-bold mt-2 mb-2">Finger Down Library</h1>
+          <h1 className="text-xl font-bold mt-2 mb-2">Rooster Library</h1>
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
