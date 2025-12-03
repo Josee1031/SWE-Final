@@ -5,6 +5,7 @@ from datetime import timedelta
 class ReservationSerializer(serializers.ModelSerializer):
     user_email = serializers.CharField(source='user.email', read_only=True)  # Get user email
     book_title = serializers.CharField(source='book.title', read_only=True)  # Get book title
+    returned = serializers.BooleanField(read_only=True)  # Property on model
 
     class Meta:
         model = Reservations

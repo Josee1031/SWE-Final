@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from '@/config/api'
 
 interface Book {
   book_id: number
@@ -11,18 +12,25 @@ interface Book {
 export function useBookSearch() {
   const [searchQuery, setSearchQuery] = useState('')
   const [recommendations, setRecommendations] = useState<Book[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
 
   useEffect(() => {
     const fetchRecommendations = async () => {
       if (searchQuery.length > 2) {
+        setIsSearching(true)
         try {
-          const response = await axios.get<Book[]>(`http://127.0.0.1:8000/api/books/?q=${searchQuery}`)
+          const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/?q=${searchQuery}`)
           setRecommendations(response.data.slice(0, 5)) // Limit to 5 recommendations
+          setHasSearched(true)
         } catch (error) {
           console.error("Error fetching book recommendations:", error)
+        } finally {
+          setIsSearching(false)
         }
       } else {
         setRecommendations([])
+        setHasSearched(false)
       }
     }
 
@@ -30,5 +38,5 @@ export function useBookSearch() {
     return () => clearTimeout(debounceTimer)
   }, [searchQuery])
 
-  return { searchQuery, setSearchQuery, recommendations }
+  return { searchQuery, setSearchQuery, recommendations, isSearching, hasSearched }
 }

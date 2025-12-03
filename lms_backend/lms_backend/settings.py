@@ -11,15 +11,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-import logging
-logger = logging.getLogger(__name__)
-
-def post(self, request):
-    logger.debug(f"Incoming POST data: {request.data}")
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -30,7 +25,7 @@ SECRET_KEY = 'django-insecure-^njs9hx1bipkynb)yvz*tk#%41al*opv%8_(p%*r&ezz-24oz$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -116,12 +111,11 @@ CORS_ALLOW_CREDENTIALS = True
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',  # Use JWT for authentication
+        'rest_framework.authentication.TokenAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.AllowAny',
-        'rest_framework.permissions.IsAuthenticated',
     ),
 }
 
@@ -135,14 +129,16 @@ AUTHENTICATION_BACKENDS = [
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+# In a real production deployment, you would need to create a .env file and store the database credentials in it.
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'bookworm',  
-        'USER': 'bookworm_user',  
-        'PASSWORD': 'securepassword', 
-        'HOST': '127.0.0.1',  
-        'PORT': '3306', 
+        'NAME': os.environ.get('DB_NAME', 'bookworm'),
+        'USER': os.environ.get('DB_USER', 'bookworm_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'securepassword'),
+        'HOST': os.environ.get('DB_HOST', '127.0.0.1'),
+        'PORT': os.environ.get('DB_PORT', '3306'),
     }
 }
 

@@ -3,6 +3,7 @@
 import { useNavigate } from 'react-router-dom'
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '@/config/api';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,7 +24,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
-  SidebarFooter,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -31,7 +31,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, BookOpen, CalendarIcon, User, HelpCircle, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, BookOpen, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Book {
   book_id: number;
@@ -62,7 +62,7 @@ function CatalogueContent() {
       try {
         setIsLoading(true);
         setError(null);
-        const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/");
+        const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`);
         setBooks(response.data);
         const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
         setGenres(fetchedGenres);

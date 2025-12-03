@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
+import { API_BASE_URL } from '@/config/api'
 import { useNavigate } from 'react-router-dom'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -18,7 +19,9 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { Home, BookOpen, Menu,  ChevronLeft, ChevronRight, ArrowRight } from 'lucide-react'
+import { Home, BookOpen, Menu, ChevronLeft, ChevronRight, ArrowRight, Search } from 'lucide-react'
+import { Input } from "@/components/ui/input"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 
 interface Book {
@@ -45,6 +48,8 @@ function CustomerHomePageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<Book[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [hasSearched, setHasSearched] = useState(false)
   const { toggleSidebar, state: sidebarState } = useSidebar()
 
   useEffect(() => {
@@ -52,7 +57,7 @@ function CustomerHomePageContent() {
       try {
         setIsLoading(true)
         setError(null)
-        const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/")
+        const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`)
         setFeaturedBooks(response.data.slice(0, 6)) // Assuming we want to feature the first 4 books
       } catch (error) {
         console.error("Error fetching featured books:", error)
@@ -81,14 +86,19 @@ function CustomerHomePageContent() {
   useEffect(() => {
     const fetchSearchResults = async () => {
       if (searchQuery.length > 2) {
+        setIsSearching(true)
         try {
-          const response = await axios.get<Book[]>(`http://127.0.0.1:8000/api/books/?q=${searchQuery}`)
+          const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/?q=${searchQuery}`)
           setSearchResults(response.data.slice(0, 5)) // Limit to 5 results
+          setHasSearched(true)
         } catch (error) {
           console.error("Error fetching search results:", error)
+        } finally {
+          setIsSearching(false)
         }
       } else {
         setSearchResults([])
+        setHasSearched(false)
       }
     }
 
@@ -133,7 +143,51 @@ function CustomerHomePageContent() {
               </Button>
               <h1 className="text-2xl font-bold">Customer Home</h1>
             </div>
-            
+
+            <div className="flex items-center space-x-4">
+              <Popover open={searchQuery.length > 2 && (searchResults.length > 0 || hasSearched)}>
+                <PopoverTrigger asChild>
+                  <div className="flex items-center max-w-md">
+                    <Input
+                      type="search"
+                      placeholder="Search books (min 3 chars)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="mr-2"
+                    />
+                    <Button size="icon">
+                      <Search className="h-4 w-4" />
+                      <span className="sr-only">Search</span>
+                    </Button>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-[300px] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  {isSearching ? (
+                    <div className="p-3 text-center text-muted-foreground">Searching...</div>
+                  ) : searchResults.length > 0 ? (
+                    searchResults.map((book) => (
+                      <Button
+                        key={book.book_id}
+                        variant="ghost"
+                        className="w-full justify-start text-left p-3 hover:bg-secondary"
+                        onClick={() => navigate('/user-catalogue')}
+                      >
+                        <div className="w-full">
+                          <div className="font-medium">{book.title}</div>
+                          <div className="text-sm text-muted-foreground">{book.author_name}</div>
+                          <div className={`text-xs ${book.is_available ? 'text-green-600' : 'text-red-600'}`}>
+                            {book.is_available ? 'Available' : 'Not Available'}
+                          </div>
+                        </div>
+                      </Button>
+                    ))
+                  ) : hasSearched ? (
+                    <div className="p-3 text-center text-muted-foreground">No results found</div>
+                  ) : null}
+                </PopoverContent>
+              </Popover>
+            </div>
+
             <SidebarTrigger className="md:hidden">
               <Button variant="ghost" size="icon">
                 <Menu className="h-6 w-6" />

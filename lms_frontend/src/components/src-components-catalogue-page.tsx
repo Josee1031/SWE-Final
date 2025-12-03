@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '@/config/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,10 +65,40 @@ interface Book {
   copy_number: number;
 }
 
+// ISBN-10 check digit validation
+const isValidISBN10 = (isbn: string): boolean => {
+  if (isbn.length !== 10) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    if (!/\d/.test(isbn[i])) return false;
+    sum += parseInt(isbn[i]) * (10 - i);
+  }
+  const lastChar = isbn[9].toUpperCase();
+  sum += lastChar === 'X' ? 10 : parseInt(lastChar);
+  return sum % 11 === 0;
+};
+
+// ISBN-13 check digit validation
+const isValidISBN13 = (isbn: string): boolean => {
+  if (isbn.length !== 13 || !/^\d{13}$/.test(isbn)) return false;
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    sum += parseInt(isbn[i]) * (i % 2 === 0 ? 1 : 3);
+  }
+  return sum % 10 === 0;
+};
+
+const isValidISBN = (isbn: string): boolean => {
+  const cleaned = isbn.replace(/[-\s]/g, '');
+  return isValidISBN10(cleaned) || isValidISBN13(cleaned);
+};
+
 const bookSchema = z.object({
   title: z.string().min(1, "Title is required"),
   author_name: z.string().min(1, "Author name is required"),
-  isbn: z.string().min(1, "ISBN is required"),
+  isbn: z.string()
+    .min(1, "ISBN is required")
+    .refine(isValidISBN, "Invalid ISBN (must be a valid ISBN-10 or ISBN-13)"),
   genre_name: z.string().min(1, "Genre is required"),
   copy_number: z.number().int().min(1, "At least one copy is required"),
 });
@@ -109,7 +140,7 @@ function CatalogueContent() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/");
+      const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`);
       setBooks(response.data);
       const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
       setGenres(fetchedGenres);
@@ -146,7 +177,7 @@ function CatalogueContent() {
   const handleDelete = async (bookId: number) => {
     if (window.confirm("Are you sure you want to delete this book?")) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/books/${bookId}/`);
+        await axios.delete(`${API_BASE_URL}/api/books/${bookId}/`);
         toast({
           title: "Book Deleted",
           description: "The book has been successfully deleted.",
@@ -165,7 +196,7 @@ function CatalogueContent() {
 
   const addBook = async (data: z.infer<typeof bookSchema>) => {
     try {
-      await axios.post("http://127.0.0.1:8000/api/books/", data);
+      await axios.post(`${API_BASE_URL}/api/books/`, data);
       toast({
         title: "Book Added",
         description: "The book has been successfully added.",
@@ -186,7 +217,7 @@ function CatalogueContent() {
   const onSubmit = async (data: z.infer<typeof bookSchema>) => {
     if (!selectedBook) return;
     try {
-      await axios.put(`http://127.0.0.1:8000/api/books/${selectedBook.book_id}/`, data);
+      await axios.put(`${API_BASE_URL}/api/books/${selectedBook.book_id}/`, data);
       toast({
         title: "Book Updated",
         description: "The book has been successfully updated.",
@@ -233,15 +264,9 @@ function CatalogueContent() {
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff-home')}>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -250,7 +275,6 @@ function CatalogueContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="border-t mt-auto">
@@ -269,7 +293,10 @@ function CatalogueContent() {
               <h1 className="text-2xl font-bold">Book Catalogue</h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
+                setIsAddDialogOpen(open);
+                if (!open) form.reset();
+              }}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
@@ -290,9 +317,12 @@ function CatalogueContent() {
                         name="title"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Title</FormLabel>
+                            <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input
+                                {...field}
+                                className={form.formState.errors.title ? "border-red-500 focus-visible:ring-red-500" : ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -303,9 +333,12 @@ function CatalogueContent() {
                         name="author_name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Author Name</FormLabel>
+                            <FormLabel>Author Name <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input
+                                {...field}
+                                className={form.formState.errors.author_name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -314,18 +347,14 @@ function CatalogueContent() {
                       <FormField
                         control={form.control}
                         name="isbn"
-                        rules={{
-                          required: "ISBN is required",
-                          pattern: {
-                            value: /^(?:\d{10}|\d{13})$/,
-                            message: "Invalid ISBN format"
-                          }
-                        }}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>ISBN</FormLabel>
+                            <FormLabel>ISBN <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
-                              <Input {...field} />
+                              <Input
+                                {...field}
+                                className={form.formState.errors.isbn ? "border-red-500 focus-visible:ring-red-500" : ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -336,10 +365,10 @@ function CatalogueContent() {
                         name="genre_name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Genre</FormLabel>
+                            <FormLabel>Genre <span className="text-red-500">*</span></FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
                               <FormControl>
-                                <SelectTrigger>
+                                <SelectTrigger className={form.formState.errors.genre_name ? "border-red-500 focus:ring-red-500" : ""}>
                                   <SelectValue placeholder="Select a genre" />
                                 </SelectTrigger>
                               </FormControl>
@@ -360,9 +389,14 @@ function CatalogueContent() {
                         name="copy_number"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Number of Copies</FormLabel>
+                            <FormLabel>Number of Copies <span className="text-red-500">*</span></FormLabel>
                             <FormControl>
-                              <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                              <Input
+                                type="number"
+                                {...field}
+                                onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                                className={form.formState.errors.copy_number ? "border-red-500 focus-visible:ring-red-500" : ""}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -527,7 +561,10 @@ function CatalogueContent() {
         </div>
       </div>
 
-      <Dialog open={isModifyDialogOpen} onOpenChange={setIsModifyDialogOpen}>
+      <Dialog open={isModifyDialogOpen} onOpenChange={(open) => {
+        setIsModifyDialogOpen(open);
+        if (!open) form.reset();
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modify Book</DialogTitle>
@@ -542,9 +579,12 @@ function CatalogueContent() {
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Title</FormLabel>
+                    <FormLabel>Title <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        className={form.formState.errors.title ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -555,42 +595,44 @@ function CatalogueContent() {
                 name="author_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Author Name</FormLabel>
+                    <FormLabel>Author Name <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        className={form.formState.errors.author_name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            <FormField
-              control={form.control}
-              name="isbn"
-              rules={{
-                required: "ISBN is required",
-                pattern: {
-                  value: /^(?:\d{10}|\d{13})$/,
-                  message: "Invalid ISBN format"
-                }
-              }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>ISBN</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              <FormField
+                control={form.control}
+                name="isbn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ISBN <span className="text-red-500">*</span></FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        className={form.formState.errors.isbn ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
               <FormField
                 control={form.control}
                 name="genre_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Genre</FormLabel>
+                    <FormLabel>Genre <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                        {...field}
+                        className={form.formState.errors.genre_name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -601,9 +643,14 @@ function CatalogueContent() {
                 name="copy_number"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Number of Copies</FormLabel>
+                    <FormLabel>Number of Copies <span className="text-red-500">*</span></FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={(e) => field.onChange(parseInt(e.target.value, 10))} />
+                      <Input
+                        type="number"
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        className={form.formState.errors.copy_number ? "border-red-500 focus-visible:ring-red-500" : ""}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

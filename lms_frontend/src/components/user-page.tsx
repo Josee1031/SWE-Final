@@ -1,8 +1,9 @@
 'use client'
 
 import { useNavigate } from "react-router-dom";
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '@/config/api';
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,7 +25,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, BookOpen, CalendarIcon, Users,  Menu, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Home,  Users,  Menu, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface UserData {
@@ -52,7 +53,7 @@ function UsersContent() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get<UserData[]>("http://127.0.0.1:8000/api/users/");
+      const response = await axios.get<UserData[]>(`${API_BASE_URL}/api/users/`);
       setUsers(response.data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -65,7 +66,7 @@ function UsersContent() {
   const handleDelete = async (userId: number) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/users/${userId}/`);
+        await axios.delete(`${API_BASE_URL}/api/users/${userId}/`);
         toast({
           title: "User Deleted",
           description: "The user has been successfully deleted.",
@@ -97,16 +98,10 @@ function UsersContent() {
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
-          <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
-                <Home className="mr-2 h-4 w-4" />
-                Home
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Catalogue
+                <Home className="mr-2 h-4 w-4" />
+                Home
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -115,10 +110,8 @@ function UsersContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            
-
           </SidebarMenu>
-          </SidebarContent>
+        </SidebarContent>
        
       </Sidebar>
 

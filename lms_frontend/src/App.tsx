@@ -92,7 +92,7 @@ const AppContent: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to={user.is_staff ? "/staff-home" : "/customer-home"} replace />} />
+        <Route path="*" element={<Navigate to={user.is_staff ? "/catalogue" : "/customer-home"} replace />} />
       </Routes>
       <LogoutFooter />
     </>

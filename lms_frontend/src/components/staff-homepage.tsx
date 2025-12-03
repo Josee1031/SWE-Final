@@ -32,7 +32,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { BookOpen, Users, CalendarIcon, Home, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { BookOpen, Users, Home, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useBookSearch } from '@/hooks/useBookSearch'
 
@@ -62,15 +62,9 @@ function StaffHomePageContent() {
         <SidebarContent className="py-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff-home')}>
+              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
                 <Home className="mr-2 h-4 w-4" />
                 Home
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -79,7 +73,6 @@ function StaffHomePageContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            
           </SidebarMenu>
         </SidebarContent>
         
@@ -166,31 +159,6 @@ function StaffHomePageContent() {
               </CardContent>
             </Card>
             
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-center">Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-center">
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Books Out</dt>
-                    <dd className="mt-1 text-3xl font-semibold">142</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Overdue</dt>
-                    <dd className="mt-1 text-3xl font-semibold">7</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">New Members</dt>
-                    <dd className="mt-1 text-3xl font-semibold">15</dd>
-                  </div>
-                  <div>
-                    <dt className="text-sm font-medium text-muted-foreground">Total Members</dt>
-                    <dd className="mt-1 text-3xl font-semibold">2,847</dd>
-                  </div>
-                </dl>
-              </CardContent>
-            </Card>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
@@ -198,11 +166,13 @@ function StaffHomePageContent() {
               icon={<BookOpen className="h-8 w-8 md:h-10 md:w-10 text-primary" />}
               title="Catalog Management"
               description="Add, edit, or remove books from the library catalog."
+              onClick={() => navigate('/catalogue')}
             />
             <FeatureCard
               icon={<Users className="h-8 w-8 md:h-10 md:w-10 text-primary" />}
               title="User Management"
               description="Manage library members, their accounts, and permissions."
+              onClick={() => navigate('/users')}
             />
           </div>
         </main>
@@ -215,11 +185,15 @@ interface FeatureCardProps {
   icon: React.ReactNode;
   title: string;
   description: string;
+  onClick?: () => void;
 }
 
-function FeatureCard({ icon, title, description }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, onClick }: FeatureCardProps) {
   return (
-    <Card className="w-full">
+    <Card
+      className={`w-full ${onClick ? 'cursor-pointer hover:bg-secondary/50 transition-colors' : ''}`}
+      onClick={onClick}
+    >
       <CardHeader>
         <div className="flex justify-center mb-4">{icon}</div>
         <CardTitle className="text-center">{title}</CardTitle>

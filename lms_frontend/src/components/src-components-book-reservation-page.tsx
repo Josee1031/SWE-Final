@@ -1,9 +1,10 @@
 'use client'
 
 import { useNavigate } from 'react-router-dom'
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import axios from 'axios'
+import { API_BASE_URL } from '@/config/api'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -11,10 +12,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar } from "@/components/ui/calendar"
-import { format } from "date-fns"
+import { format, startOfDay } from "date-fns"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Sidebar, SidebarContent, SidebarHeader, SidebarFooter, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { BookOpen, CalendarIcon, Home, HelpCircle, Menu, Search, ChevronRight, Users, ChevronLeft } from 'lucide-react'
+import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
+import { BookOpen, Home, Menu, ChevronRight, Users, ChevronLeft } from 'lucide-react'
+import * as z from "zod"
+
+// Validation schema for reservation
+const reservationSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Invalid email format"),
+  reservationDate: z.date({ required_error: "Please select a date" }).refine(
+    (date) => startOfDay(date) >= startOfDay(new Date()),
+    { message: "Reservation date cannot be in the past" }
+  ),
+});
+
+interface ReservationFieldErrors {
+  email?: string;
+  reservationDate?: string;
+}
 
 interface BookCopy {
   copy_id: number;
@@ -44,6 +60,16 @@ interface Reservation {
   returned: boolean;
 }
 
+type ErrorResponseData = { error?: string };
+
+const getAxiosErrorMessage = (error: unknown, fallback: string) => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ErrorResponseData | undefined;
+    return data?.error ?? error.message ?? fallback;
+  }
+  return fallback;
+}
+
 function BookReservationPageContent() {
   const navigate = useNavigate()
   const { bookId } = useParams<{ bookId: string }>();
@@ -54,14 +80,37 @@ function BookReservationPageContent() {
   const [reservationDate, setReservationDate] = useState<Date | undefined>(new Date())
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [selectedCopyId, setSelectedCopyId] = useState<number | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [reservationFieldErrors, setReservationFieldErrors] = useState<ReservationFieldErrors>({})
   const { toggleSidebar, state: sidebarState } = useSidebar()
   const { toast } = useToast()
+
+  const validateReservation = (): boolean => {
+    const errors: ReservationFieldErrors = {};
+
+    try {
+      reservationSchema.parse({ email, reservationDate });
+      setReservationFieldErrors({});
+      return true;
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        err.errors.forEach((error) => {
+          const field = error.path[0] as keyof ReservationFieldErrors;
+          errors[field] = error.message;
+        });
+      }
+      setReservationFieldErrors(errors);
+      return false;
+    }
+  };
+
+  const clearReservationErrors = () => {
+    setReservationFieldErrors({});
+  };
 
   useEffect(() => {
     const fetchBookDetails = async () => {
       try {
-        const response = await axios.get<BookDetails>(`http://127.0.0.1:8000/api/books/${bookId}/`);
+        const response = await axios.get<BookDetails>(`${API_BASE_URL}/api/books/${bookId}/`);
         setBookDetails(response.data);
         setCopies(response.data.copies);
       } catch (error) {
@@ -76,7 +125,7 @@ function BookReservationPageContent() {
 
     const fetchReservations = async () => {
       try {
-        const response = await axios.get<Reservation[]>(`http://127.0.0.1:8000/api/books/${bookId}/reservations/`);
+        const response = await axios.get<Reservation[]>(`${API_BASE_URL}/api/reservations/?book_id=${bookId}&returned=false`);
         setReservations(response.data);
       } catch (error) {
         console.error('Error fetching reservations:', error);
@@ -99,6 +148,7 @@ function BookReservationPageContent() {
 
   const handleReserve = (copyId: number) => {
     setSelectedCopyId(copyId);
+    clearReservationErrors();
     setIsDialogOpen(true);
   };
   //reservations/<int:reservation_id>/extend/'
@@ -106,7 +156,7 @@ function BookReservationPageContent() {
     try {
       // Make the PUT request to extend the deadline
       const response = await axios.put(
-        `http://127.0.0.1:8000/api/reservations/${reservation_id}/extend/`
+        `${API_BASE_URL}/api/reservations/${reservation_id}/extend/`
       );
   
       if (response.status === 200) {
@@ -131,8 +181,7 @@ function BookReservationPageContent() {
       // Show an error message
       toast({
         title: "Action Failed",
-        description:
-          error.response?.data?.error || "There was an error extending the reservation deadline. Please try again.",
+        description: getAxiosErrorMessage(error, "There was an error extending the reservation deadline. Please try again."),
         variant: "destructive",
       });
     }
@@ -141,8 +190,12 @@ function BookReservationPageContent() {
   const handleConfirmReservation = async () => {
     if (!selectedCopyId || !bookDetails) return;
 
+    if (!validateReservation()) {
+      return;
+    }
+
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/reservations/', {
+      const response = await axios.post(`${API_BASE_URL}/api/reservations/`, {
         email: email,
         book_id: bookDetails.book_id,
         copy_id: selectedCopyId,
@@ -170,7 +223,7 @@ function BookReservationPageContent() {
       console.error('Error making reservation:', error);
       toast({
         title: "Reservation Failed",
-        description: error.response?.data?.error || "There was an error making the reservation. Please try again.",
+        description: getAxiosErrorMessage(error, "There was an error making the reservation. Please try again."),
         variant: "destructive",
       });
     }
@@ -178,7 +231,7 @@ function BookReservationPageContent() {
 
   const handleCopyStatus = async (bookId: number, copyId: number) => {
     try {
-      const response = await axios.put(`http://127.0.0.1:8000/api/books/${bookId}/copies/${copyId}/`, {
+      const response = await axios.put(`${API_BASE_URL}/api/books/${bookId}/copies/${copyId}/`, {
         is_available: true
       });
 
@@ -203,7 +256,7 @@ function BookReservationPageContent() {
       console.error("Error updating copy status:", error);
       toast({
         title: "Action Failed",
-        description: error.response?.data?.error || "There was an error updating the copy status. Please try again.",
+        description: getAxiosErrorMessage(error, "There was an error updating the copy status. Please try again."),
         variant: "destructive",
       });
     }
@@ -221,16 +274,10 @@ function BookReservationPageContent() {
         </SidebarHeader>
         <SidebarContent className="py-2">
           <SidebarMenu>
-          <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/staff')}>
-                <Home className="mr-2 h-4 w-4" />
-                Home
-              </SidebarMenuButton>
-            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/catalogue')}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Catalogue
+                <Home className="mr-2 h-4 w-4" />
+                Home
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
@@ -239,7 +286,6 @@ function BookReservationPageContent() {
                 Users
               </SidebarMenuButton>
             </SidebarMenuItem>
-            
           </SidebarMenu>
         </SidebarContent>
       </Sidebar>
@@ -374,26 +420,41 @@ function BookReservationPageContent() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Reservation Date</Label>
-              <div className="col-span-3">
-                <Calendar
-                  mode="single"
-                  selected={reservationDate}
-                  onSelect={setReservationDate}
-                  className="rounded-md border"
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">
+                  Email <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); setReservationFieldErrors(prev => ({ ...prev, email: undefined })); }}
+                  className={`col-span-3 ${reservationFieldErrors.email ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                 />
               </div>
+              {reservationFieldErrors.email && (
+                <p className="text-red-500 text-sm text-right">{reservationFieldErrors.email}</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">
+                  Date <span className="text-red-500">*</span>
+                </Label>
+                <div className="col-span-3">
+                  <Calendar
+                    mode="single"
+                    selected={reservationDate}
+                    onSelect={(date) => { setReservationDate(date); setReservationFieldErrors(prev => ({ ...prev, reservationDate: undefined })); }}
+                    className={`rounded-md border ${reservationFieldErrors.reservationDate ? "border-red-500" : ""}`}
+                    disabled={(date) => startOfDay(date) < startOfDay(new Date())}
+                  />
+                </div>
+              </div>
+              {reservationFieldErrors.reservationDate && (
+                <p className="text-red-500 text-sm text-right">{reservationFieldErrors.reservationDate}</p>
+              )}
             </div>
           </div>
           <DialogFooter>

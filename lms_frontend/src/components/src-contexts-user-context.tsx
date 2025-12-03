@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { API_BASE_URL } from '@/config/api';
 
 interface User {
   id: number;
@@ -34,7 +35,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!refreshToken) return null;
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/token/refresh/', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/token/refresh/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -58,7 +59,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const fetchUserData = async (token: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/auth/users/me/', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/users/me/`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

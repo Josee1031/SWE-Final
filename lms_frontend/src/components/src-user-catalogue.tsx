@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '@/config/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, BookOpen, CalendarIcon, Users, Menu, Search, ChevronLeft, ChevronRight, CalendarPlus } from 'lucide-react';
+import { Home, BookOpen, Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface Book {
@@ -66,7 +67,7 @@ function CatalogueContent() {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get<Book[]>("http://127.0.0.1:8000/api/books/");
+      const response = await axios.get<Book[]>(`${API_BASE_URL}/api/books/`);
       setBooks(response.data);
       const fetchedGenres = [...new Set(response.data.map(book => book.genre_name))];
       setGenres(fetchedGenres);
@@ -135,13 +136,6 @@ function CatalogueContent() {
                 Catalogue
               </SidebarMenuButton>
             </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton className="w-full justify-start px-4 py-2" onClick={() => navigate('/users')}>
-                <Users className="mr-2 h-4 w-4" />
-                Users
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="border-t mt-auto">
