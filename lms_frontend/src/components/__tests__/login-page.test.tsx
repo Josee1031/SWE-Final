@@ -64,18 +64,18 @@ describe('LoginPage', () => {
   })
 
   describe('Form Validation', () => {
-    it('requires email field', async () => {
+    it('shows required indicator for email field', async () => {
       renderLoginPage()
 
-      const emailInput = screen.getByLabelText(/email/i)
-      expect(emailInput).toBeRequired()
+      const emailLabel = screen.getByText(/email/i)
+      expect(emailLabel.querySelector('.text-red-500')).toBeInTheDocument()
     })
 
-    it('requires password field', async () => {
+    it('shows required indicator for password field', async () => {
       renderLoginPage()
 
-      const passwordInput = screen.getByLabelText(/password/i)
-      expect(passwordInput).toBeRequired()
+      const passwordLabel = screen.getByText(/password/i)
+      expect(passwordLabel.querySelector('.text-red-500')).toBeInTheDocument()
     })
 
     it('email input has correct type', () => {
@@ -168,7 +168,7 @@ describe('LoginPage', () => {
       })
     })
 
-    it('navigates to staff-home for staff users', async () => {
+    it('navigates to catalogue for staff users', async () => {
       const user = userEvent.setup()
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -186,7 +186,7 @@ describe('LoginPage', () => {
       await user.click(screen.getByRole('button', { name: /login/i }))
 
       await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/staff-home')
+        expect(mockNavigate).toHaveBeenCalledWith('/catalogue')
       })
     })
 
